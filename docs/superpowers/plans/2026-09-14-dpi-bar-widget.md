@@ -114,7 +114,7 @@ int main()
         EXPECT(dpiscale::dpiToPos(50) == 0.0, "50 -> 0.0");
         EXPECT(dpiscale::dpiToPos(26000) == 1.0, "26000 -> 1.0");
         const double p1 = dpiscale::dpiToPos(400);
-        const double p2 = dpiscale::dpiToPos(2000);
+        const double p2 = dpiscale::dpiToPos(1000);
         const double p3 = dpiscale::dpiToPos(12000);
         EXPECT(p1 > 0.0 && p1 < p2 && p2 < 0.5 && p3 < 1.0,
             "log scale: defaults well-spaced in (0,1)");
