@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QFutureWatcher>
+#include "dpibar.h"
 
 class QCloseEvent;
 class settings;
@@ -33,6 +34,8 @@ private slots:
     void on_btn_settings_clicked();
     void onSettingsDeviceSelected(const QString &devicePath);
     void reloadSettingsUi();
+    void onDpiValueChanged(int stage, int dpi);
+    void onDpiStageActivated(int stage);
 
 private:
     void loadDeviceAndBattery(const QString &devicePath);
@@ -44,5 +47,6 @@ private:
     QString m_currentDevicePath;
     QFutureWatcher<int> *m_batteryWatcher = nullptr;
     settings *m_settings = nullptr;
+    DpiBarWidget *m_dpiBar = nullptr;
 };
 #endif // ATSX11_H
