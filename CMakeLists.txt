@@ -20,6 +20,7 @@ set(PROJECT_SOURCES
         dpiscale.h dpiscale.cpp
         dpibar.h dpibar.cpp
         autostart.h autostart.cpp
+        systemtray.h systemtray.cpp
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
