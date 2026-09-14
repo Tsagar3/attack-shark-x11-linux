@@ -5,6 +5,8 @@
 
 #include <QApplication>
 #include <QColor>
+#include <QLocalServer>
+#include <QLocalSocket>
 #include <QPalette>
 #include <QStyleFactory>
 #include <QSystemTrayIcon>
@@ -100,7 +102,35 @@ int main(int argc, char *argv[])
     QApplication a(argc, argv);
     applyDarkTheme(a);
 
+    const QString serverName = QStringLiteral("attackshark-x11-")
+        + QString::number(getuid());
+
+    QLocalSocket probe;
+    probe.connectToServer(serverName);
+    if (probe.waitForConnected(200) || probe.state() == QLocalSocket::ConnectedState) {
+        probe.write("show");
+        probe.flush();
+        probe.waitForBytesWritten(200);
+        return 0;
+    }
+
+    QLocalServer server;
+    QLocalServer::removeServer(serverName);
+    if (!server.listen(serverName))
+        return 0;
+
     atsx11 w;
+
+    QObject::connect(&server, &QLocalServer::newConnection, &w,
+        [&server, &w] {
+            QLocalSocket *client = server.nextPendingConnection();
+            if (!client)
+                return;
+            client->deleteLater();
+            w.show();
+            w.raise();
+            w.activateWindow();
+        });
 
     const QStringList args = QCoreApplication::arguments();
     const bool startHidden = args.contains(QStringLiteral("--hidden"))

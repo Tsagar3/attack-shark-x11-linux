@@ -342,4 +342,5 @@ void atsx11::onTrayQuitRequested()
 {
     m_quitting = true;
     close();
+    QCoreApplication::quit();
 }
