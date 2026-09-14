@@ -59,7 +59,7 @@
     when `dpi[i] <= dpi[i-1]` (duplicates resolve up by 50; collisions at the ceiling
     may still be equal 26000). Returns `true` if any element changed.
 
-- [ ] **Step 1: Write the header (test contract)**
+- [x] **Step 1: Write the header (test contract)**
 
 Content of `dpiscale.h`:
 
@@ -84,7 +84,7 @@ bool clampOrdered(int dpi[kNumStages]);
 #endif // DPISCALE_H
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Content of `tests/dpiscale_test.cpp`:
 
@@ -183,7 +183,7 @@ int main()
 }
 ```
 
-- [ ] **Step 3: Wire the test target into CMake, with an empty implementation (must FAIL to link)**
+- [x] **Step 3: Wire the test target into CMake, with an empty implementation (must FAIL to link)**
 
 Append to the end of `CMakeLists.txt` (after the existing `dpi_encoding_tests` block lines 97–100):
 
@@ -208,7 +208,7 @@ namespace dpiscale {
 Run: `cmake -S . -B build && cmake --build build -j$(nproc)`
 Expected: build FAILS — `undefined reference to dpiscale::dpiToPos(int)` etc. (functions declared but not defined).
 
-- [ ] **Step 4: Implement `dpiscale.cpp`**
+- [x] **Step 4: Implement `dpiscale.cpp`**
 
 Replace the bodies:
 
@@ -268,17 +268,17 @@ bool clampOrdered(int dpi[kNumStages])
 } // namespace dpiscale
 ```
 
-- [ ] **Step 5: Run the dpiscale tests — must now PASS**
+- [x] **Step 5: Run the dpiscale tests — must now PASS**
 
 Run: `cmake --build build -j$(nproc) && ./build/dpiscale_tests`
 Expected: `All dpiscale tests PASSED`.
 
-- [ ] **Step 6: Run existing regression test**
+- [x] **Step 6: Run existing regression test**
 
 Run: `./build/dpi_encoding_tests`
 Expected: `All DPI encoding tests PASSED`.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add dpiscale.h dpiscale.cpp tests/dpiscale_test.cpp CMakeLists.txt
@@ -307,7 +307,7 @@ git commit -m "feat: add dpiscale logarithmic DPI bar mapping with unit tests"
 
 Layout contract (widget is 700×150 in the final UI): track baseline at `height() - 48`, points on that line, values above points, `50`/`26000` labels below the track.
 
-- [ ] **Step 1: Write the header**
+- [x] **Step 1: Write the header**
 
 Content of `dpibar.h`:
 
@@ -365,7 +365,7 @@ private:
 #endif // DPIBAR_H
 ```
 
-- [ ] **Step 2: Write the implementation**
+- [x] **Step 2: Write the implementation**
 
 Content of `dpibar.cpp`:
 
@@ -712,7 +712,7 @@ void DpiBarWidget::setActiveStage(int stage)
 
 Note: `setValues(const int *values)` (array parameter decays; matches the `const int values[6]` in the header declaration).
 
-- [ ] **Step 3: Add sources to the app target in `CMakeLists.txt`**
+- [x] **Step 3: Add sources to the app target in `CMakeLists.txt`**
 
 In the Qt 6 `qt_add_executable(attackshark-x11 ...)` block, after the `dpi.h dpi.cpp` line (lines 30–34), add:
 
@@ -722,12 +722,12 @@ In the Qt 6 `qt_add_executable(attackshark-x11 ...)` block, after the `dpi.h dpi
         dpibar.h dpibar.cpp
 ```
 
-- [ ] **Step 4: Configure and build — must compile cleanly**
+- [x] **Step 4: Configure and build — must compile cleanly**
 
 Run: `cmake -S . -B build && cmake --build build -j$(nproc)`
 Expected: build succeeds with no errors. The app binary is not run yet (it will crash-free only after Task 3 wiring is done; but it still compiles because the widget is not yet instantiated).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add dpibar.h dpibar.cpp CMakeLists.txt
@@ -747,7 +747,7 @@ git commit -m "feat: add DpiBarWidget GHub-style DPI bar (render + interaction)"
 - Consumes: `DpiBarWidget` (Task 2) and `dpiscale::kNumStages` (Task 1).
 - Produces: nothing new; keeps `applySettingsFromUser(path, color, prate, angleSnap, keyResp, sleep, deepSleep, ripple, dpi[6], activeStage)` call signature and QSettings keys `dpiValues`/`activeDpiStage` identical.
 
-- [ ] **Step 1: Edit `atsx11.ui` — resize window to 740×520**
+- [x] **Step 1: Edit `atsx11.ui` — resize window to 740×520**
 
 In three places (the `geometry` property inside the `QMainWindow` `atsx11`, `minimumSize`, and `maximumSize`), change `720`→`740` and `440`→`520`:
 
@@ -758,7 +758,7 @@ In three places (the `geometry` property inside the `QMainWindow` `atsx11`, `min
 3. `maximumSize` (lines ~28–33):
    `<width>720</width>` → `<width>740</width>`; `<height>440</height>` → `<height>520</height>`
 
-- [ ] **Step 2: Edit `atsx11.ui` — delete the DPI grid widget**
+- [x] **Step 2: Edit `atsx11.ui` — delete the DPI grid widget**
 
 Delete the entire block (original lines 346–492), which starts with:
 
@@ -787,7 +787,7 @@ just before the `<widget class="QWidget" name="gridLayoutWidget_6">` line (origi
 
 Verification of the edit: `grep -c "spn_dpi" atsx11.ui` → `0`.
 
-- [ ] **Step 3: Edit `atsx11.ui` — move the bottom bar down**
+- [x] **Step 3: Edit `atsx11.ui` — move the bottom bar down**
 
 The widget `<widget class="QWidget" name="horizontalLayoutWidget">` currently has (original lines 2696–2704):
 
@@ -819,7 +819,7 @@ Change to:
 
 Do NOT touch `verticalLayoutWidget` (the Apply button stays at `(390, 210, 321, 61)`).
 
-- [ ] **Step 4: Edit `atsx11.h`**
+- [x] **Step 4: Edit `atsx11.h`**
 
 Add `#include "dpibar.h"` and the member + slots:
 
@@ -845,7 +845,7 @@ Add the member after `settings *m_settings = nullptr;`:
     DpiBarWidget *m_dpiBar = nullptr;
 ```
 
-- [ ] **Step 5: Edit `atsx11.cpp` — constructor: instantiate widget + connect**
+- [x] **Step 5: Edit `atsx11.cpp` — constructor: instantiate widget + connect**
 
 In `atsx11::atsx11()`, insert before `loadSettings();`:
 
@@ -863,7 +863,7 @@ and after `loadSettings();`:
             this, &atsx11::onDpiStageActivated);
 ```
 
-- [ ] **Step 6: Edit `atsx11.cpp` — `updateInfoLabels()`**
+- [x] **Step 6: Edit `atsx11.cpp` — `updateInfoLabels()`**
 
 Replace lines 56–62 (the spinbox DPI block):
 
@@ -885,7 +885,7 @@ with:
         QString::number(m_dpiBar->values()[active - 1]) + QStringLiteral(" DPI"));
 ```
 
-- [ ] **Step 7: Edit `atsx11.cpp` — `loadSettings()` DPI block**
+- [x] **Step 7: Edit `atsx11.cpp` — `loadSettings()` DPI block**
 
 Replace lines 120–137 (the DPI load using spinboxes/combo):
 
@@ -927,7 +927,7 @@ with:
     m_dpiBar->setActiveStage(std::clamp(activeStage, 1, 6));
 ```
 
-- [ ] **Step 8: Edit `atsx11.cpp` — `saveSettings()` DPI block**
+- [x] **Step 8: Edit `atsx11.cpp` — `saveSettings()` DPI block**
 
 Replace lines 157–163:
 
@@ -952,11 +952,11 @@ with:
         m_dpiBar->activeStage());
 ```
 
-- [ ] **Step 9: Edit `atsx11.cpp` — `reloadSettingsUi()` DPI block**
+- [x] **Step 9: Edit `atsx11.cpp` — `reloadSettingsUi()` DPI block**
 
 Apply the identical replacement as Step 7 (the block is duplicated verbatim at original lines 291–308).
 
-- [ ] **Step 10: Edit `atsx11.cpp` — `on_btn_apply_clicked()` DPI block**
+- [x] **Step 10: Edit `atsx11.cpp` — `on_btn_apply_clicked()` DPI block**
 
 Replace lines 184–188:
 
@@ -977,7 +977,7 @@ with:
     const int activeDpiStage = m_dpiBar->activeStage();
 ```
 
-- [ ] **Step 11: Add the two new slots to `atsx11.cpp`**
+- [x] **Step 11: Add the two new slots to `atsx11.cpp`**
 
 Place after `on_btn_apply_clicked()`:
 
@@ -995,7 +995,7 @@ void atsx11::onDpiStageActivated(int)
 }
 ```
 
-- [ ] **Step 12: Build**
+- [x] **Step 12: Build**
 
 Run: `cmake -S . -B build && cmake --build build -j$(nproc)`
 Expected: build succeeds (AUTOUIC regenerates `ui_atsx11.h` without the deleted widgets; no references to `spn_dpi*`/`cbox_dpiStage` remain in `atsx11.cpp`).
@@ -1003,7 +1003,7 @@ Expected: build succeeds (AUTOUIC regenerates `ui_atsx11.h` without the deleted 
 Double-check no stale references:
 `grep -rn "spn_dpi\|cbox_dpiStage" atsx11.cpp atsx11.h` → no output.
 
-- [ ] **Step 13: Regression + smoke test**
+- [x] **Step 13: Regression + smoke test**
 
 Run: `./build/dpiscale_tests` and `./build/dpi_encoding_tests` — both PASS.
 
@@ -1016,7 +1016,7 @@ Manual smoke (requires root + the X11 mouse dongle, e.g. via `sudo` if your envi
 - Close + reopen → values and active stage persist.
 - Apply with the dongle connected → mouse sensitivity follows the active DPI.
 
-- [ ] **Step 14: Commit**
+- [x] **Step 14: Commit**
 
 ```bash
 git add atsx11.ui atsx11.h atsx11.cpp
@@ -1031,27 +1031,27 @@ git commit -m "feat: integrate DPI bar widget, remove spinbox grid"
 - Modify: none expected (verification task; commit only if a change is needed)
 - Verify: `README.md`, `CMakeLists.txt`, all tests
 
-- [ ] **Step 1: Clean rebuild**
+- [x] **Step 1: Clean rebuild**
 
 Run: `rm -rf build && cmake -S . -B build && cmake --build build -j$(nproc)`
 (If `rm -rf` is blocked by tool permissions, run `cmake -S . -B build --fresh && cmake --build build -j$(nproc)` instead.)
 Expected: clean configure + build with no errors/warnings beyond pre-existing ones.
 
-- [ ] **Step 2: Run full test suite**
+- [x] **Step 2: Run full test suite**
 
 Run: `ctest --test-dir build --output-on-failure`
 Expected: 2/2 tests pass — `dpiscale_tests` and `dpi_encoding_tests`.
 
-- [ ] **Step 3: Verify README**
+- [x] **Step 3: Verify README**
 
 Run: `grep -n "DPI Configuration" README.md` — line 44 must still read `- [x] DPI Configuration`. Do not edit.
 
-- [ ] **Step 4: Verify git state**
+- [x] **Step 4: Verify git state**
 
 Run: `git status --short`
 Expected: working tree clean (all changes committed in Tasks 1–3). If any file is dirty (e.g. regenerated lockfile), inspect before deciding; commit only meaningful changes.
 
-- [ ] **Step 5: Commit only if there are changes**
+- [x] **Step 5: Commit only if there are changes**
 
 ```bash
 git add -A
@@ -1059,3 +1059,40 @@ git commit -m "chore: final DPI bar verification"   # only if Step 4 showed pend
 ```
 
 If the tree is clean, no commit is needed (matches project precedent: the previous plan's Task 4 was a verified no-op).
+
+---
+
+## Execution Record (2026-09-14)
+
+**Method:** superpowers:subagent-driven-development (subagent drivers per task, task review after each, whole-branch review at the end). Implemented directly on `main` (user consent from previous plan).
+
+**Plan corrections made during execution (all reviewed and ruled by the controller):**
+- `1f45011` docs: fix `dpiToPos` test sample `2000 → 1000` (log midpoint of [50,26000] is ~1140, so `dpiToPos(2000) ≈ 0.59` violated the strict `p2 < 0.5` assertion).
+- `48f05e8` docs: fix drag-release-commit semantics (per-move `valueChanged` contradicted the spec's "release-commit only") and add the Tab/Backtab/F2 keyboard paths mandated by the spec.
+
+**Commits (on `main`, ordered):**
+
+| SHA | Subject |
+|---|---|
+| `c7a3c58` | feat: add dpiscale logarithmic DPI bar mapping with unit tests |
+| `6c21cd3` | feat: add GHub-style DpiBarWidget for DPI stage editing |
+| `986ef4d` | fix: commit drag on release and add Tab/Backtab/F2 keyboard paths |
+| `b5a2814` | feat: integrate DpiBarWidget into atsx11 window (replace DPI spinboxes) |
+| `565ea54` | fix: grab mouse during drag, share DPI sources across Qt branches, per-stage setValues emission |
+
+**Reviews:**
+- Task 1: Approved (spec ✅, verbatim; no issues).
+- Task 2: 2 Important plan-mandated defects found (per-move drag emit, missing Tab/Backtab/F2) → plan corrected + fixes re-reviewed → Approved.
+- Task 3: Approved (verified `state.currentDpi` adaptation to the real QSettings pattern end-to-end).
+- Task 4: PASS (clean rebuild, 2/2 tests, README line 44 intact, tracked tree clean).
+- Whole-branch: 2 Important (phantom drag without `grabMouse()`, Qt5 target link regression) + 1 Minor included → single fix wave `565ea54` → re-review: all findings ADDRESSED, no new breakage.
+- Deferred minors ruled ACCEPT: trailing newlines (repo style), track baseline `height()-50` vs layout-text `-48`, drag also moves the just-activated stage, 1-based active index, direct-save policy (1 write/drag with release-commit), `setValues` not rounding legacy off-grid values, hardcoded `std::clamp(1, 6)` (matches plan/style), no GUI test harness (no display env).
+
+**Automated verification (final tree, HEAD `565ea54`):**
+- `cmake -S . -B build && cmake --build build -j$(nproc)` — clean, no warnings (GCC 16.2.1, Qt 6.11.2).
+- `ctest --test-dir build --output-on-failure` — 2/2 passed (`dpiscale_tests`, `dpi_encoding_tests`).
+- `grep -c "spn_dpi\|cbox_dpiStage\|lbl_dpiStage" atsx11.ui→ 0` — no stale UI references.
+
+**Manual hardware verification (2026-09-14, user-confirmed):** the app was launched as root via the built-in pkexec elevation flow on the desktop session and the user confirmed the interface **works correctly** with the new GHub-style DPI bar (6 draggable points, log scale, no crash).
+
+**Not touched:** `hook.cpp`, `hook.h`, `dpi.cpp`, `dpi.h`, `settings.cpp`, `settings.h`, `main.cpp`, `settings.ui`, `applySettingsFromUser`.
