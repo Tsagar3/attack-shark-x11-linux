@@ -28,10 +28,8 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         hook.h hook.cpp
         settings.h settings.cpp settings.ui
         dpi.h dpi.cpp
-
-
-
-
+        dpiscale.h dpiscale.cpp
+        dpibar.h dpibar.cpp
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET attackshark-x11 APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
