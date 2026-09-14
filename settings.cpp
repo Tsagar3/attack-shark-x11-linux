@@ -4,6 +4,7 @@
 #include <QMessageBox>
 #include <QSettings>
 #include <QStyle>
+#include <QVariant>
 
 namespace {
 constexpr auto kSettingsOrg = "AttackShark";
@@ -129,6 +130,13 @@ void settings::on_btn_applyProfilePreset_clicked()
     qSettings.setValue(QStringLiteral("deepSleepTime"), p.deepSleepTime);
     if (p.colorMode >= 0)
         qSettings.setValue(QStringLiteral("colorMode"), p.colorMode);
+
+    QVariantList dpiList;
+    for (int v : defaultDpi)
+        dpiList << v;
+    qSettings.setValue(QStringLiteral("dpiValues"), dpiList);
+    qSettings.setValue(QStringLiteral("activeDpiStage"), activeStage);
+
     qSettings.sync();
 
     emit profileApplied();

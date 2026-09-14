@@ -10,10 +10,10 @@
     <x>0</x>
     <y>0</y>
     <width>720</width>
-    <height>320</height>
-   </rect>
-  </property>
-  <property name="sizePolicy">
+     <height>440</height>
+    </rect>
+   </property>
+   <property name="sizePolicy">
    <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
     <horstretch>0</horstretch>
     <verstretch>0</verstretch>
@@ -22,13 +22,13 @@
   <property name="minimumSize">
    <size>
     <width>720</width>
-    <height>320</height>
+    <height>440</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
     <width>720</width>
-    <height>320</height>
+    <height>440</height>
    </size>
   </property>
   <property name="sizeIncrement">
@@ -343,6 +343,153 @@
      </item>
     </layout>
    </widget>
+   <widget class="QWidget" name="gridLayoutWidget_dpi">
+    <property name="geometry">
+     <rect>
+      <x>220</x>
+      <y>282</y>
+      <width>491</width>
+      <height>80</height>
+     </rect>
+    </property>
+    <layout class="QGridLayout" name="gridLayout_dpi">
+     <item row="0" column="0">
+      <widget class="QLabel" name="lbl_dpiStage">
+       <property name="text">
+        <string>Active Stage</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QComboBox" name="cbox_dpiStage">
+       <property name="toolTip">
+        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The active DPI stage applied by the mouse cursor.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+       </property>
+       <item>
+        <property name="text"><string>Stage 1</string></property>
+       </item>
+       <item>
+        <property name="text"><string>Stage 2</string></property>
+       </item>
+       <item>
+        <property name="text"><string>Stage 3</string></property>
+       </item>
+       <item>
+        <property name="text"><string>Stage 4</string></property>
+       </item>
+       <item>
+        <property name="text"><string>Stage 5</string></property>
+       </item>
+       <item>
+        <property name="text"><string>Stage 6</string></property>
+       </item>
+      </widget>
+     </item>
+     <item row="0" column="3">
+      <spacer name="horizontalSpacer_dpi">
+       <property name="orientation">
+        <enum>Qt::Orientation::Horizontal</enum>
+       </property>
+      </spacer>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="lbl_dpi1">
+       <property name="text"><string>DPI 1</string></property>
+       <property name="toolTip">
+        <string>DPI value for Stage 1 (50–26000)</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QSpinBox" name="spn_dpi1">
+       <property name="minimum"><number>50</number></property>
+       <property name="maximum"><number>26000</number></property>
+       <property name="singleStep"><number>50</number></property>
+       <property name="value"><number>800</number></property>
+      </widget>
+     </item>
+     <item row="1" column="2">
+      <widget class="QLabel" name="lbl_dpi2">
+       <property name="text"><string>DPI 2</string></property>
+       <property name="toolTip">
+        <string>DPI value for Stage 2 (50–26000)</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="3">
+      <widget class="QSpinBox" name="spn_dpi2">
+       <property name="minimum"><number>50</number></property>
+       <property name="maximum"><number>26000</number></property>
+       <property name="singleStep"><number>50</number></property>
+       <property name="value"><number>1600</number></property>
+      </widget>
+     </item>
+     <item row="1" column="4">
+      <widget class="QLabel" name="lbl_dpi3">
+       <property name="text"><string>DPI 3</string></property>
+       <property name="toolTip">
+        <string>DPI value for Stage 3 (50–26000)</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="5">
+      <widget class="QSpinBox" name="spn_dpi3">
+       <property name="minimum"><number>50</number></property>
+       <property name="maximum"><number>26000</number></property>
+       <property name="singleStep"><number>50</number></property>
+       <property name="value"><number>2400</number></property>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="lbl_dpi4">
+       <property name="text"><string>DPI 4</string></property>
+       <property name="toolTip">
+        <string>DPI value for Stage 4 (50–26000)</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QSpinBox" name="spn_dpi4">
+       <property name="minimum"><number>50</number></property>
+       <property name="maximum"><number>26000</number></property>
+       <property name="singleStep"><number>50</number></property>
+       <property name="value"><number>3200</number></property>
+      </widget>
+     </item>
+     <item row="2" column="2">
+      <widget class="QLabel" name="lbl_dpi5">
+       <property name="text"><string>DPI 5</string></property>
+       <property name="toolTip">
+        <string>DPI value for Stage 5 (50–26000)</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="3">
+      <widget class="QSpinBox" name="spn_dpi5">
+       <property name="minimum"><number>50</number></property>
+       <property name="maximum"><number>26000</number></property>
+       <property name="singleStep"><number>50</number></property>
+       <property name="value"><number>5000</number></property>
+      </widget>
+     </item>
+     <item row="2" column="4">
+      <widget class="QLabel" name="lbl_dpi6">
+       <property name="text"><string>DPI 6</string></property>
+       <property name="toolTip">
+        <string>DPI value for Stage 6 (50–26000)</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="5">
+      <widget class="QSpinBox" name="spn_dpi6">
+       <property name="minimum"><number>50</number></property>
+       <property name="maximum"><number>26000</number></property>
+       <property name="singleStep"><number>50</number></property>
+       <property name="value"><number>22000</number></property>
+      </widget>
+     </item>
+    </layout>
+   </widget>
    <widget class="QWidget" name="gridLayoutWidget_6">
     <property name="geometry">
      <rect>
@@ -404,15 +551,15 @@
      </item>
     </layout>
    </widget>
-   <widget class="QWidget" name="gridLayoutWidget_8">
-    <property name="geometry">
-     <rect>
-      <x>220</x>
-      <y>10</y>
-      <width>491</width>
-      <height>51</height>
-     </rect>
-    </property>
+     <widget class="QWidget" name="gridLayoutWidget_8">
+     <property name="geometry">
+      <rect>
+       <x>220</x>
+       <y>10</y>
+       <width>491</width>
+       <height>73</height>
+      </rect>
+     </property>
     <layout class="QGridLayout" name="gridLayout_8">
      <property name="leftMargin">
       <number>0</number>
@@ -1933,7 +2080,7 @@
           <x>0</x>
           <y>0</y>
           <width>121</width>
-          <height>51</height>
+          <height>73</height>
          </rect>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_2">
@@ -1943,6 +2090,25 @@
          <property name="rightMargin">
           <number>5</number>
          </property>
+         <item>
+          <widget class="QLabel" name="lbl_activeDpi">
+           <property name="text">
+            <string>DPI</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="lbl_activeDpiValue">
+           <property name="font">
+            <font>
+             <pointsize>12</pointsize>
+            </font>
+           </property>
+           <property name="text">
+            <string>&#x2014;</string>
+           </property>
+          </widget>
+         </item>
          <item>
           <widget class="QLabel" name="lbl_activeAngleSnap">
            <property name="text">
@@ -2529,10 +2695,10 @@
    </widget>
    <widget class="QWidget" name="horizontalLayoutWidget">
     <property name="geometry">
-     <rect>
-      <x>0</x>
-      <y>260</y>
-      <width>721</width>
+      <rect>
+       <x>0</x>
+       <y>370</y>
+       <width>721</width>
       <height>58</height>
      </rect>
     </property>

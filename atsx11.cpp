@@ -6,6 +6,7 @@
 #include <QSettings>
 #include <QStyle>
 #include <QtConcurrent/QtConcurrent>
+#include <algorithm>
 #include "hook.h"
 #include "settings.h"
 
@@ -51,6 +52,14 @@ void atsx11::updateInfoLabels()
     ui->lbl_infoLEDValue->setText(ui->cbox_colormodes->currentText());
     ui->info_ripplectrlValue->setText(ui->chbox_rippleCTRL->isChecked() ? QStringLiteral("On") : QStringLiteral("Off"));
     ui->lbl_activeAngleSnapValue->setText(ui->chbox_anglesnap->isChecked() ? QStringLiteral("On") : QStringLiteral("Off"));
+
+    const int stage = ui->cbox_dpiStage->currentIndex();
+    QSpinBox *dpiSpinboxes[6] = {
+        ui->spn_dpi1, ui->spn_dpi2, ui->spn_dpi3,
+        ui->spn_dpi4, ui->spn_dpi5, ui->spn_dpi6
+    };
+    ui->lbl_activeDpiValue->setText(
+        QString::number(dpiSpinboxes[stage]->value()) + QStringLiteral(" DPI"));
 }
 
 void atsx11::loadDeviceAndBattery(const QString &devicePath)
@@ -108,6 +117,25 @@ void atsx11::loadSettings()
     ui->sld_keyresptime->setValue(keyRespTime);
     ui->lbl_kreptimeValueDisplay->setText(QString::number(keyRespTime) + QStringLiteral(" ms"));
 
+    // Load DPI
+    const QVariantList dpiList = qSettings.value(
+        QStringLiteral("dpiValues"),
+        QVariantList{800, 1600, 2400, 3200, 5000, 22000}).toList();
+    const int dpiDefaults[6] = {800, 1600, 2400, 3200, 5000, 22000};
+    QSpinBox *dpiSpinboxes[6] = {
+        ui->spn_dpi1, ui->spn_dpi2, ui->spn_dpi3,
+        ui->spn_dpi4, ui->spn_dpi5, ui->spn_dpi6
+    };
+    for (int i = 0; i < 6; ++i) {
+        const int val = (i < dpiList.size())
+            ? dpiList[i].toInt() : dpiDefaults[i];
+        dpiSpinboxes[i]->setValue(std::clamp(val, 50, 26000));
+    }
+    const int activeStage = qSettings.value(
+        QStringLiteral("activeDpiStage"), 1).toInt();
+    ui->cbox_dpiStage->setCurrentIndex(
+        std::clamp(activeStage, 1, 6) - 1);
+
     updateInfoLabels();
 
     if (!devPath.isEmpty())
@@ -125,6 +153,14 @@ void atsx11::saveSettings()
     qSettings.setValue(QStringLiteral("sleepTime"),    ui->sldr_sleeptime->value());
     qSettings.setValue(QStringLiteral("deepSleepTime"),ui->sldr_deepSleepTime->value());
     qSettings.setValue(QStringLiteral("keyRespTime"),  ui->sld_keyresptime->value());
+
+    QVariantList dpiList;
+    dpiList << ui->spn_dpi1->value() << ui->spn_dpi2->value()
+            << ui->spn_dpi3->value() << ui->spn_dpi4->value()
+            << ui->spn_dpi5->value() << ui->spn_dpi6->value();
+    qSettings.setValue(QStringLiteral("dpiValues"), dpiList);
+    qSettings.setValue(QStringLiteral("activeDpiStage"),
+        ui->cbox_dpiStage->currentIndex() + 1);
     qSettings.sync();
 }
 
@@ -145,8 +181,11 @@ void atsx11::on_btn_apply_clicked()
     const int deepSleepTime= ui->sldr_deepSleepTime->value();
     const bool rippleCtrl  = ui->chbox_rippleCTRL->isChecked();
 
-    int dpi[6] = {800, 1600, 2400, 3200, 5000, 22000};
-    int activeDpiStage = 1;
+    int dpi[6] = {
+        ui->spn_dpi1->value(), ui->spn_dpi2->value(), ui->spn_dpi3->value(),
+        ui->spn_dpi4->value(), ui->spn_dpi5->value(), ui->spn_dpi6->value()
+    };
+    int activeDpiStage = ui->cbox_dpiStage->currentIndex() + 1;
 
     const int result = applySettingsFromUser(m_currentDevicePath, color, prate, angleSnap, keyRespTime, sleepTime, deepSleepTime, rippleCtrl, dpi, activeDpiStage);
     if (result != 0) {
@@ -248,6 +287,25 @@ void atsx11::reloadSettingsUi()
 
     ui->sld_keyresptime->setValue(keyRespTime);
     ui->lbl_kreptimeValueDisplay->setText(QString::number(keyRespTime) + QStringLiteral(" ms"));
+
+    // Load DPI
+    const QVariantList dpiList = qSettings.value(
+        QStringLiteral("dpiValues"),
+        QVariantList{800, 1600, 2400, 3200, 5000, 22000}).toList();
+    const int dpiDefaults[6] = {800, 1600, 2400, 3200, 5000, 22000};
+    QSpinBox *dpiSpinboxes[6] = {
+        ui->spn_dpi1, ui->spn_dpi2, ui->spn_dpi3,
+        ui->spn_dpi4, ui->spn_dpi5, ui->spn_dpi6
+    };
+    for (int i = 0; i < 6; ++i) {
+        const int val = (i < dpiList.size())
+            ? dpiList[i].toInt() : dpiDefaults[i];
+        dpiSpinboxes[i]->setValue(std::clamp(val, 50, 26000));
+    }
+    const int activeStage = qSettings.value(
+        QStringLiteral("activeDpiStage"), 1).toInt();
+    ui->cbox_dpiStage->setCurrentIndex(
+        std::clamp(activeStage, 1, 6) - 1);
 
     updateInfoLabels();
 }
