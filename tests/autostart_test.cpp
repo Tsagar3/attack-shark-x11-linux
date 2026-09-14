@@ -46,6 +46,14 @@ int main(int argc, char *argv[])
         "desktop file Exec passes --hidden");
     EXPECT(fileContains(filePath, QStringLiteral("Type=Application")),
         "desktop file parse header");
+    EXPECT(fileContains(filePath, QStringLiteral("Exec=\"")),
+        "desktop file Exec is quoted");
+    EXPECT(fileContains(filePath, QStringLiteral("Terminal=false")),
+        "desktop file has Terminal=false");
+    EXPECT(fileContains(filePath, QStringLiteral("StartupNotify=false")),
+        "desktop file has StartupNotify=false");
+    EXPECT(fileContains(filePath, QStringLiteral("X-GNOME-Autostart-enabled=true")),
+        "desktop file has X-GNOME-Autostart-enabled=true");
 
     EXPECT(autostart::setEnabled(true), "setEnabled(true) is idempotent");
     EXPECT(autostart::isEnabled(), "still enabled after second enable");

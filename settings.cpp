@@ -193,6 +193,9 @@ void settings::on_chkbox_autostartup_toggled(bool checked)
         QMessageBox::warning(this, QStringLiteral("Error"),
             QStringLiteral("Failed to update autostart entry: %1")
                 .arg(autostart::desktopFilePath()));
+        ui->chkbox_autostartup->blockSignals(true);
+        ui->chkbox_autostartup->setChecked(!checked);
+        ui->chkbox_autostartup->blockSignals(false);
         return;
     }
 

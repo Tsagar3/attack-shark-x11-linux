@@ -128,6 +128,14 @@ int main(int argc, char *argv[])
         "desktop file Exec passes --hidden");
     EXPECT(fileContains(filePath, QStringLiteral("Type=Application")),
         "desktop file parse header");
+    EXPECT(fileContains(filePath, QStringLiteral("Exec=\"")),
+        "desktop file Exec is quoted");
+    EXPECT(fileContains(filePath, QStringLiteral("Terminal=false")),
+        "desktop file has Terminal=false");
+    EXPECT(fileContains(filePath, QStringLiteral("StartupNotify=false")),
+        "desktop file has StartupNotify=false");
+    EXPECT(fileContains(filePath, QStringLiteral("X-GNOME-Autostart-enabled=true")),
+        "desktop file has X-GNOME-Autostart-enabled=true");
 
     EXPECT(autostart::setEnabled(true), "setEnabled(true) is idempotent");
     EXPECT(autostart::isEnabled(), "still enabled after second enable");
@@ -567,6 +575,9 @@ void settings::on_chkbox_autostartup_toggled(bool checked)
         QMessageBox::warning(this, QStringLiteral("Error"),
             QStringLiteral("Failed to update autostart entry: %1")
                 .arg(autostart::desktopFilePath()));
+        ui->chkbox_autostartup->blockSignals(true);
+        ui->chkbox_autostartup->setChecked(!checked);
+        ui->chkbox_autostartup->blockSignals(false);
         return;
     }
 
