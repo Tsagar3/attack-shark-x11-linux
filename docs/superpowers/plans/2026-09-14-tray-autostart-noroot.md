@@ -538,8 +538,13 @@ In `settings.cpp` constructor, after the existing `QSettings qSettings(...)` /
     const bool autostartEnabled =
         qSettings.value(QStringLiteral("autostartEnabled"), false).toBool();
 
+    ui->chkbox_minimizeTray->blockSignals(true);
     ui->chkbox_minimizeTray->setChecked(minToTray);
+    ui->chkbox_minimizeTray->blockSignals(false);
+
+    ui->chkbox_autostartup->blockSignals(true);
     ui->chkbox_autostartup->setChecked(autostartEnabled);
+    ui->chkbox_autostartup->blockSignals(false);
 ```
 
 Add `#include "autostart.h"` to the includes in `settings.cpp`.
