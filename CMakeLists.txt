@@ -27,6 +27,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         mouse_model_display.qrc
         hook.h hook.cpp
         settings.h settings.cpp settings.ui
+        dpi.h dpi.cpp
 
 
 
@@ -92,3 +93,8 @@ pkg_check_modules(LIBUSB REQUIRED libusb-1.0)
 
 target_include_directories(attackshark-x11 PRIVATE ${UDEV_INCLUDE_DIRS} ${LIBUSB_INCLUDE_DIRS})
 target_link_libraries(attackshark-x11 PRIVATE ${UDEV_LIBRARIES} ${LIBUSB_LIBRARIES})
+
+enable_testing()
+add_executable(dpi_encoding_tests tests/dpi_encoding_test.cpp dpi.cpp)
+target_compile_features(dpi_encoding_tests PRIVATE cxx_std_17)
+add_test(NAME dpi_encoding_tests COMMAND dpi_encoding_tests)
