@@ -98,3 +98,7 @@ enable_testing()
 add_executable(dpi_encoding_tests tests/dpi_encoding_test.cpp dpi.cpp)
 target_compile_features(dpi_encoding_tests PRIVATE cxx_std_17)
 add_test(NAME dpi_encoding_tests COMMAND dpi_encoding_tests)
+
+add_executable(dpiscale_tests tests/dpiscale_test.cpp dpiscale.cpp)
+target_compile_features(dpiscale_tests PRIVATE cxx_std_17)
+add_test(NAME dpiscale_tests COMMAND dpiscale_tests)
