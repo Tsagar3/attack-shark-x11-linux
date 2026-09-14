@@ -135,6 +135,7 @@ void DpiBarWidget::mousePressEvent(QMouseEvent *event)
     if (stage < 0)
         return;
     m_dragStage = stage;
+    m_dragStartValue = m_values[stage];
     setActiveStage(stage + 1);
     setCursor(Qt::ClosedHandCursor);
     event->accept();
@@ -149,7 +150,6 @@ void DpiBarWidget::mouseMoveEvent(QMouseEvent *event)
     m_values[m_dragStage] = dpiscale::posToDpi(pos, true);
     dpiscale::clampOrdered(m_values);
     update();
-    emit valueChanged(m_dragStage + 1, m_values[m_dragStage]);
     event->accept();
 }
 
@@ -157,9 +157,12 @@ void DpiBarWidget::mouseReleaseEvent(QMouseEvent *event)
 {
     if (m_dragStage < 0)
         return;
+    const int stage = m_dragStage;
     m_dragStage = -1;
     unsetCursor();
     update();
+    if (m_values[stage] != m_dragStartValue)
+        emit valueChanged(stage + 1, m_values[stage]);
     event->accept();
 }
 
@@ -216,6 +219,19 @@ void DpiBarWidget::keyPressEvent(QKeyEvent *event)
     case Qt::Key_Left:
         delta = shift ? -250 : -50;
         break;
+    case Qt::Key_Tab:
+        setActiveStage(m_activeStage < dpiscale::kNumStages ? m_activeStage + 1 : 1);
+        event->accept();
+        return;
+    case Qt::Key_Backtab:
+        setActiveStage(m_activeStage > 1 ? m_activeStage - 1 : dpiscale::kNumStages);
+        event->accept();
+        return;
+    case Qt::Key_F2:
+        if (m_editor == nullptr)
+            openEditor(m_activeStage - 1);
+        event->accept();
+        return;
     default:
         QWidget::keyPressEvent(event);
         return;

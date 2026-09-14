@@ -43,6 +43,7 @@ private:
     int m_values[6] = {800, 1600, 2400, 3200, 5000, 22000};
     int m_activeStage = 1;
     int m_dragStage = -1;
+    int m_dragStartValue = 0;
     QLineEdit *m_editor = nullptr;
     int m_editStage = 0;
 };
