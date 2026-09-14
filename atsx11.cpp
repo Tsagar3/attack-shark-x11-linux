@@ -9,6 +9,8 @@
 #include <algorithm>
 #include "hook.h"
 #include "settings.h"
+#include "systemtray.h"
+#include <QSystemTrayIcon>
 
 
 namespace {
@@ -23,6 +25,14 @@ atsx11::atsx11(QWidget *parent)
 {
     ui->setupUi(this);
     setWindowIcon(QIcon(QStringLiteral(":/images/assets/mouse.png")));
+    if (QSystemTrayIcon::isSystemTrayAvailable()) {
+        m_tray = new systemtray(
+            QIcon(QStringLiteral(":/images/assets/mouse.png")), this, this);
+        connect(m_tray, &systemtray::restoreRequested,
+                this, &atsx11::onTrayRestoreRequested);
+        connect(m_tray, &systemtray::quitRequested,
+                this, &atsx11::onTrayQuitRequested);
+    }
     ui->btn_settings->setIcon(QIcon(QStringLiteral(":/images/assets/wgear.png")));
     ui->btn_settings->setText(QString());
     ui->lbl_isCharging->setPixmap(QPixmap());
@@ -50,6 +60,15 @@ atsx11::~atsx11()
 
 void atsx11::closeEvent(QCloseEvent *event)
 {
+    if (m_tray && !m_quitting) {
+        QSettings qSettings(kSettingsOrg, kSettingsApp);
+        if (qSettings.value(QStringLiteral("minToTray"), true).toBool()) {
+            event->ignore();
+            hide();
+            return;
+        }
+    }
+
     saveSettings();
     QMainWindow::closeEvent(event);
 }
@@ -310,4 +329,17 @@ void atsx11::reloadSettingsUi()
     m_dpiBar->setActiveStage(std::clamp(activeStage, 1, 6));
 
     updateInfoLabels();
+}
+
+void atsx11::onTrayRestoreRequested()
+{
+    show();
+    raise();
+    activateWindow();
+}
+
+void atsx11::onTrayQuitRequested()
+{
+    m_quitting = true;
+    close();
 }

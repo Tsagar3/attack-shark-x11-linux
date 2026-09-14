@@ -6,6 +6,7 @@
 #include "dpibar.h"
 
 class QCloseEvent;
+class systemtray;
 class settings;
 
 QT_BEGIN_NAMESPACE
@@ -36,6 +37,8 @@ private slots:
     void reloadSettingsUi();
     void onDpiValueChanged(int stage, int dpi);
     void onDpiStageActivated(int stage);
+    void onTrayRestoreRequested();
+    void onTrayQuitRequested();
 
 private:
     void loadDeviceAndBattery(const QString &devicePath);
@@ -48,5 +51,7 @@ private:
     QFutureWatcher<int> *m_batteryWatcher = nullptr;
     settings *m_settings = nullptr;
     DpiBarWidget *m_dpiBar = nullptr;
+    systemtray *m_tray = nullptr;
+    bool m_quitting = false;
 };
 #endif // ATSX11_H
