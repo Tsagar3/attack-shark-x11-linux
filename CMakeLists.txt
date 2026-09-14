@@ -19,6 +19,7 @@ set(PROJECT_SOURCES
         atsx11.ui
         dpiscale.h dpiscale.cpp
         dpibar.h dpibar.cpp
+        autostart.h autostart.cpp
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
@@ -100,3 +101,8 @@ add_test(NAME dpi_encoding_tests COMMAND dpi_encoding_tests)
 add_executable(dpiscale_tests tests/dpiscale_test.cpp dpiscale.cpp)
 target_compile_features(dpiscale_tests PRIVATE cxx_std_17)
 add_test(NAME dpiscale_tests COMMAND dpiscale_tests)
+
+add_executable(autostart_tests tests/autostart_test.cpp autostart.cpp)
+target_compile_features(autostart_tests PRIVATE cxx_std_17)
+target_link_libraries(autostart_tests PRIVATE Qt${QT_VERSION_MAJOR}::Core)
+add_test(NAME autostart_tests COMMAND autostart_tests)
