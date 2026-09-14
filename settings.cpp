@@ -99,6 +99,9 @@ void settings::on_btn_applyProfilePreset_clicked()
 
     const int colorMode = (p.colorMode >= 0) ? p.colorMode : 0;
 
+    int defaultDpi[6] = {800, 1600, 2400, 3200, 5000, 22000};
+    int activeStage = 1;
+
     const int result = applySettingsFromUser(
         devicePath,
         colorMode,
@@ -107,7 +110,9 @@ void settings::on_btn_applyProfilePreset_clicked()
         p.keyRespTime,
         p.sleepTime,
         p.deepSleepTime,
-        p.rippleControl);
+        p.rippleControl,
+        defaultDpi,
+        activeStage);
 
     if (result != 0) {
         QMessageBox::warning(this, QStringLiteral("Error"),

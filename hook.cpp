@@ -1,4 +1,5 @@
 #include "hook.h"
+#include "dpi.h"
 
 #include <cstdint>
 #include <unistd.h>
@@ -278,7 +279,9 @@ int applySettingsFromUser(
     int keyRespTime,
     int sleepTime,
     int deepSleepTime,
-    bool rippleControl)
+    bool rippleControl,
+    const int dpiValues[6],
+    int activeDpiStage)
 {
     if (colorMode < 0 || colorMode >= 4 || pollingRate < 0 || pollingRate >= 4)
         return -1;
@@ -287,6 +290,11 @@ int applySettingsFromUser(
     if (deepSleepTime < 1 || deepSleepTime > 60)
         return -1;
     if (keyRespTime < 4 || keyRespTime > 50 || keyRespTime % 2 != 0)
+        return -1;
+    for (int i = 0; i < 6; ++i)
+        if (dpiValues[i] < 50 || dpiValues[i] > 26000)
+            return -1;
+    if (activeDpiStage < 1 || activeDpiStage > 6)
         return -1;
 
     struct udev *udev = udev_new();
@@ -320,26 +328,9 @@ int applySettingsFromUser(
     const bool colorOk = sendReport(ctx, device, 0x0305, colorReport, sizeof(colorReport));
     usleep(kReportDelayUs);
 
-    // Apply the angle snap setting
-    uint8_t dpiReport[56] = {
-        0x04, 0x38, 0x01,
-        angleSnap ? 0x01 : 0x00,      // offset 3: Angle Snap
-        rippleControl ? 0x01 : 0x00,  // offset 4: Ripple Control
-        0x3f, 0x00, 0x00,
-        0x01,
-        0x25, 0x38, 0x4b, 0x75, 0x8d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x01, 0x00, 0x00,
-        0x02,
-        0xff, 0x00, 0x00, 0x00,
-        0xff, 0x00, 0x00, 0x00,
-        0xff, 0xff, 0xff, 0x00, 0x00,
-        0xff, 0xff, 0xff, 0x00,
-        0xff, 0xff, 0x40, 0x00,
-        0xff, 0xff, 0xff,
-        0x02, 0x0f,
-        0x34,
-        0x00, 0x00, 0x00, 0x00
-    };
+    // Apply DPI configuration (stages, active stage, angle snap, ripple control)
+    uint8_t dpiReport[56];
+    buildDpiReport(dpiValues, activeDpiStage, angleSnap, rippleControl, dpiReport);
     const bool angleSnapOk = sendReport(ctx, device, 0x0304, dpiReport, sizeof(dpiReport));
 
     libusb_exit(ctx);

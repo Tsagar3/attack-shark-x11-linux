@@ -145,7 +145,10 @@ void atsx11::on_btn_apply_clicked()
     const int deepSleepTime= ui->sldr_deepSleepTime->value();
     const bool rippleCtrl  = ui->chbox_rippleCTRL->isChecked();
 
-    const int result = applySettingsFromUser(m_currentDevicePath, color, prate, angleSnap, keyRespTime, sleepTime, deepSleepTime, rippleCtrl);
+    int dpi[6] = {800, 1600, 2400, 3200, 5000, 22000};
+    int activeDpiStage = 1;
+
+    const int result = applySettingsFromUser(m_currentDevicePath, color, prate, angleSnap, keyRespTime, sleepTime, deepSleepTime, rippleCtrl, dpi, activeDpiStage);
     if (result != 0) {
         ui->lbl_debug->setText(QStringLiteral("<html><head/><body><p><span style='color:red;'>Error: failed to apply settings</span></p></body></html>"));
         QMessageBox::warning(this, QStringLiteral("Error"), QStringLiteral("Failed to apply settings to the device (code %1).").arg(result));
