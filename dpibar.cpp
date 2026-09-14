@@ -134,6 +134,7 @@ void DpiBarWidget::mousePressEvent(QMouseEvent *event)
     const int stage = hitTestPoint(event->pos());
     if (stage < 0)
         return;
+    grabMouse();
     m_dragStage = stage;
     m_dragStartValue = m_values[stage];
     setActiveStage(stage + 1);
@@ -159,6 +160,7 @@ void DpiBarWidget::mouseReleaseEvent(QMouseEvent *event)
         return;
     const int stage = m_dragStage;
     m_dragStage = -1;
+    releaseMouse();
     unsetCursor();
     update();
     if (m_values[stage] != m_dragStartValue)
@@ -317,20 +319,17 @@ void DpiBarWidget::applyEditedValue()
 
 void DpiBarWidget::setValues(const int *values)
 {
-    bool changed = false;
+    int old[dpiscale::kNumStages];
+    for (int i = 0; i < dpiscale::kNumStages; ++i)
+        old[i] = m_values[i];
+    for (int i = 0; i < dpiscale::kNumStages; ++i)
+        m_values[i] = values[i];
+    dpiscale::clampOrdered(m_values);
     for (int i = 0; i < dpiscale::kNumStages; ++i) {
-        if (m_values[i] != values[i]) {
-            m_values[i] = values[i];
-            changed = true;
-        }
-    }
-    if (dpiscale::clampOrdered(m_values))
-        changed = true;
-    if (changed) {
-        update();
-        for (int i = 0; i < dpiscale::kNumStages; ++i)
+        if (m_values[i] != old[i])
             emit valueChanged(i + 1, m_values[i]);
     }
+    update();
 }
 
 void DpiBarWidget::setActiveStage(int stage)
