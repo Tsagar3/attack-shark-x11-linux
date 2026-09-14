@@ -1,5 +1,6 @@
 #include "settings.h"
 #include "ui_settings.h"
+#include "autostart.h"
 #include "hook.h"
 #include <QMessageBox>
 #include <QSettings>
@@ -22,6 +23,18 @@ settings::settings(QWidget *parent)
     QSettings qSettings(kSettingsOrg, kSettingsApp);
     const bool allDevices  = qSettings.value(QStringLiteral("allDevices"), false).toBool();
     const QString savedPath = qSettings.value(QStringLiteral("devicePath")).toString();
+
+    const bool minToTray = qSettings.value(QStringLiteral("minToTray"), true).toBool();
+    const bool autostartEnabled =
+        qSettings.value(QStringLiteral("autostartEnabled"), false).toBool();
+
+    ui->chkbox_minimizeTray->blockSignals(true);
+    ui->chkbox_minimizeTray->setChecked(minToTray);
+    ui->chkbox_minimizeTray->blockSignals(false);
+
+    ui->chkbox_autostartup->blockSignals(true);
+    ui->chkbox_autostartup->setChecked(autostartEnabled);
+    ui->chkbox_autostartup->blockSignals(false);
 
     ui->chbox_alldevices->blockSignals(true);
     ui->chbox_alldevices->setChecked(allDevices);
@@ -165,5 +178,26 @@ void settings::on_buttonBox_accepted()
     emit deviceSelected(devicePath);
 
     accept();
+}
+
+void settings::on_chkbox_minimizeTray_toggled(bool checked)
+{
+    QSettings qSettings(kSettingsOrg, kSettingsApp);
+    qSettings.setValue(QStringLiteral("minToTray"), checked);
+    qSettings.sync();
+}
+
+void settings::on_chkbox_autostartup_toggled(bool checked)
+{
+    if (!autostart::setEnabled(checked)) {
+        QMessageBox::warning(this, QStringLiteral("Error"),
+            QStringLiteral("Failed to update autostart entry: %1")
+                .arg(autostart::desktopFilePath()));
+        return;
+    }
+
+    QSettings qSettings(kSettingsOrg, kSettingsApp);
+    qSettings.setValue(QStringLiteral("autostartEnabled"), checked);
+    qSettings.sync();
 }
 
