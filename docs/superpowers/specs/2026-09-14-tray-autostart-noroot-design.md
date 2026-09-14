@@ -48,10 +48,12 @@ Decisions taken with the user (multiple-choice clarifications):
 - FR3: A tray icon with a context menu: **Open** (restore/raise window) and **Quit**
   (real exit). Single-click/double-click on the icon restores the window.
 - FR4: Real exit (tray Quit) persists settings before terminating.
-- FR5: A UI checkbox `Cerrar a la bandeja en vez de salir` wired to a QSettings key
-  `minToTray` (default `true`).
-- FR6: A UI checkbox `Iniciar con la sesión` wired to a QSettings key
-  `autostartEnabled` (default `false`); enabling it creates
+- FR5: The UI checkbox `chkbox_minimizeTray` (already present in `settings.ui` but
+  disabled; label "Minimize to System tray" / "Enabled") is re-enabled and wired to a
+  QSettings key `minToTray` (default `true`).
+- FR6: The UI checkbox `chkbox_autostartup` (already present in `settings.ui` but
+  disabled; label "Auto Startup" / "Enabled") is re-enabled and wired to a QSettings
+  key `autostartEnabled` (default `false`); enabling it creates
   `~/.config/autostart/attackshark.desktop`, disabling it removes it.
 - FR7: The generated autostart entry runs the app with a `--hidden` flag so it starts
   in the tray without showing the window.
@@ -86,18 +88,19 @@ main.cpp           → parse args; run as user; construct app; position window
 atsx11.*           → wire SystemTray: closeEvent, restore, quit, settings
 systemtray.h/.cpp  → NEW: QSystemTrayIcon wrapper (Open/Quit menu)
 autostart.h/.cpp   → NEW: writes/removes ~/.config/autostart/attackshark.desktop
-settings.ui        → new "General" group with 2 checkboxes
-settings.cpp/.h    → persist minToTray + autostartEnabled; drive AutostartManager
+settings.ui        → enable the two existing disabled placeholders (minimize-tray,
+                     autostart toggles)
+settings.cpp/.h    → persist minToTray + autostartEnabled; drive autostart
 ```
 
-New files are kept small and single-purpose. `SystemTray` only owns the tray icon and
+New files are kept small and single-purpose. `systemtray` only owns the tray icon and
 menu, emitting `restoreRequested()` and `quitRequested()`; it does not know about the
-main window. `AutostartManager` only knows about the `.desktop` file path and
+main window. The `autostart` namespace only knows about the `.desktop` file path and
 enable/disable; it does not know about QSettings.
 
 ### Data flow
 
-- Startup: `main` (non-root) → `atsx11` ctor → `SystemTray` (if available) →
+- Startup: `main` (non-root) → `atsx11` ctor → `systemtray` (if available) →
   `loadSettings()` reads `minToTray`, `autostartEnabled` → `--hidden` given → start
   hidden (tray only), else show window.
 - Close (user X): `closeEvent` → if `minToTray && !quitting` → `ignore()+hide()`; else
@@ -106,9 +109,9 @@ enable/disable; it does not know about QSettings.
   minimized state.
 - Tray Quit: `quitRequested()` → set `m_quitting = true` → `close()` → closeEvent
   accepts → `saveSettings()` already ran.
-- Settings dialog OK: persists `devicePath`, `allDevices` (existing), plus
-  `minToTray` and `autostartEnabled`; calls `AutostartManager::setEnabled(checked)`.
-  Remove `.desktop` if unchecked (no-op if absent).
+- Settings dialog toggles: each `chkbox_*` toggle persists its QSettings key
+  immediately; the autostart toggle additionally calls `autostart::setEnabled(checked)`
+  (writes/removes the `.desktop` on the spot, no device selection needed).
 - Autostart session login: KDE/DE runs `attackshark.desktop` → `Exec="<app>" --hidden`
   → app starts, tray only.
 
@@ -132,14 +135,16 @@ enable/disable; it does not know about QSettings.
 - Slots: `activate(QSystemTrayIcon::ActivationReason)` → emit `restoreRequested()` on
   `Trigger` and `DoubleClick`.
 - Guard: member only created when `QSystemTrayIcon::isSystemTrayAvailable()`.
-- Ownership: `SystemTray` owns the `QMenu` and `QSystemTrayIcon` (parented to it).
+- Ownership: `systemtray` owns the `QMenu` and `QSystemTrayIcon` (menu parented to the
+  main window, tray parented to the `systemtray` object).
 
 ### `autostart.h` / `autostart.cpp` (NEW)
-- `QString desktopFilePath()` → `QStandardPaths::writableLocation(GenericConfigLocation)`
-  + `/autostart/attackshark.desktop` (create dirs as needed).
-- `bool isEnabled()` → file exists.
-- `bool setEnabled(bool)` → write the desktop file (QSaveFile for atomic replace) or
-  remove it; returns success.
+- Namespace `autostart` with free functions (style of `dpiscale`), no Q_OBJECT:
+  - `QString desktopFilePath()` → `QStandardPaths::writableLocation(GenericConfigLocation)`
+    + `/autostart/attackshark.desktop` (create dirs as needed).
+  - `bool isEnabled()` → file exists.
+  - `bool setEnabled(bool)` → atomically write (QSaveFile) or remove the desktop
+    file; returns success.
 - Desktop file content:
   ```
   [Desktop Entry]
@@ -154,7 +159,7 @@ enable/disable; it does not know about QSettings.
   `appPath` = `QCoreApplication::applicationFilePath()`; quote it.
 
 ### `atsx11.h` / `atsx11.cpp`
-- Members: `QScopedPointer<SystemTray> m_tray;` and `bool m_quitting = false;`.
+- Members: `systemtray *m_tray = nullptr;` and `bool m_quitting = false;`.
 - Ctor: create tray if available; connect `restoreRequested`/`quitRequested`.
 - `closeEvent(QCloseEvent*)`:
   ```
@@ -166,16 +171,19 @@ enable/disable; it does not know about QSettings.
   arguments.
 
 ### `settings.ui`
-- Add a group at the bottom: label "General" with two `QCheckBox`:
-  `chbox_minToTray` `"Cerrar a la bandeja en vez de salir"`, `chbox_autostart`
-  `"Iniciar con la sesión"`.
+- Set `enabled` to `true` on the two existing placeholder checkboxes
+  `chkbox_minimizeTray` (label "Minimize to System tray") and `chkbox_autostartup`
+  (label "Auto Startup"). No other UI layout change.
 
 ### `settings.cpp` / `settings.h`
 - Constructor: read `minToTray` (default true), `autostartEnabled` (default false),
-  set checkbox states (`blockSignals` pattern as existing).
-- `on_buttonBox_accepted`: persist `minToTray`, `autostartEnabled`; call
-  `AutostartManager::setEnabled(chbox_autostart->isChecked())`; on failure show a
-  `QMessageBox::warning`.
+  set the two checkbox states.
+- New auto-connected slots (immediate apply, uncoupled from the device-required
+  Acceptance path so the toggles work even with no device selected):
+  - `on_chkbox_minimizeTray_toggled(bool)` → persist `minToTray` to QSettings.
+  - `on_chkbox_autostartup_toggled(bool)` → call `autostart::setEnabled(checked)`;
+    on failure show `QMessageBox::warning`; persist `autostartEnabled` to QSettings.
+- `on_buttonBox_accepted` stays unchanged (device settings only).
 
 ### `CMakeLists.txt`
 - Append `systemtray.h systemtray.cpp autostart.h autostart.cpp` to `PROJECT_SOURCES`
@@ -202,7 +210,7 @@ the ACL does not appear. Actual VID/PID to be confirmed from `lsusb` before inst
 
 - Tray unavailable → no tray object; window behaves normally; `--hidden` is ignored;
   no crash.
-- `AutostartManager::setEnabled` failure → `QMessageBox::warning` in settings dialog
+- `autostart::setEnabled` failure → `QMessageBox::warning` in settings dialog
   with the path that failed.
 - Device write fails as non-root (rule missing/dongle unplugged) → existing error
   message surfaces the apply error code; verification step ensures the user has a
@@ -219,10 +227,10 @@ the ACL does not appear. Actual VID/PID to be confirmed from `lsusb` before inst
 ## Testing strategy
 
 - Unit (existing `ctest` infra, `tests/`):
-  - `AutostartManager`: in a temp `XDG_CONFIG_HOME`, `setEnabled(true)` creates a
+  - `autostart`: in a temp `XDG_CONFIG_HOME`, `setEnabled(true)` creates a
     parseable `.desktop` containing `Exec` and `--hidden`; `setEnabled(false)` removes
     it; `isEnabled()` reflects state; idempotent.
-  - No new tests needed for `SystemTray` (no GUI harness; rule ACCEPT in prior plan).
+  - No new tests needed for `systemtray` (no GUI harness; rule ACCEPT in prior plan).
 - Build verification: clean build with current toolchain; run `ctest`; run the app
   from the taskbar as the user → no polkit prompt.
 - Manual verification with user:
