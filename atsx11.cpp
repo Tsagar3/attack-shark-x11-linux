@@ -43,7 +43,7 @@ atsx11::atsx11(QWidget *parent)
     ui->btn_apply->setEnabled(false);
 
     m_dpiBar = new DpiBarWidget(this);
-    m_dpiBar->setGeometry(20, 278, 700, 150);
+    m_dpiBar->setGeometry(20, 300, 700, 150);
 
     m_batteryTimer = new QTimer(this);
     m_batteryTimer->setInterval(30000);
@@ -263,7 +263,7 @@ void atsx11::onBatteryInfoReady()
         m_batteryTimer->start(2000);
     } else {
         ui->lbl_isCharging->setEnabled(true);
-        ui->lbl_isCharging->setPixmap(QPixmap());
+ui->lbl_isCharging->setPixmap(QPixmap());
         ui->lbl_debug->setText(QStringLiteral("Battery: ") + QString::number(battery) + QStringLiteral("%"));
         ui->pbar_batteryinfo->setValue(battery);
         m_batteryTimer->start(30000);
