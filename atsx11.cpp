@@ -45,6 +45,12 @@ atsx11::atsx11(QWidget *parent)
     m_dpiBar = new DpiBarWidget(this);
     m_dpiBar->setGeometry(20, 278, 700, 150);
 
+    m_batteryTimer = new QTimer(this);
+    m_batteryTimer->setInterval(30000);
+    connect(m_batteryTimer, &QTimer::timeout,
+            this, &atsx11::refreshBattery);
+    m_batteryTimer->start();
+
     loadSettings();
 
     connect(m_dpiBar, &DpiBarWidget::valueChanged,
@@ -85,16 +91,18 @@ void atsx11::updateInfoLabels()
         QString::number(m_dpiBar->values()[active - 1]) + QStringLiteral(" DPI"));
 }
 
-void atsx11::loadDeviceAndBattery(const QString &devicePath)
+void atsx11::loadDeviceAndBattery(const QString &devicePath, bool resetUi)
 {
     m_currentDevicePath = devicePath;
 
-    ui->btn_apply->setEnabled(true);
-    ui->lbl_batteryinfo->setEnabled(true);
-    ui->pbar_batteryinfo->setEnabled(true);
-    ui->pbar_batteryinfo->setValue(0);
-    ui->lbl_isCharging->setEnabled(false);
-    ui->lbl_debug->setText(QStringLiteral("Reading battery\u2026"));
+    if (resetUi) {
+        ui->btn_apply->setEnabled(true);
+        ui->lbl_batteryinfo->setEnabled(true);
+        ui->pbar_batteryinfo->setEnabled(true);
+        ui->pbar_batteryinfo->setValue(0);
+        ui->lbl_isCharging->setEnabled(false);
+        ui->lbl_debug->setText(QStringLiteral("Reading battery\u2026"));
+    }
 
     if (m_batteryWatcher) {
         m_batteryWatcher->cancel();
@@ -227,6 +235,12 @@ void atsx11::onDpiStageActivated(int)
     saveSettings();
 }
 
+void atsx11::refreshBattery()
+{
+    if (!m_currentDevicePath.isEmpty())
+        loadDeviceAndBattery(m_currentDevicePath, false);
+}
+
 void atsx11::onBatteryInfoReady()
 {
     if (!m_batteryWatcher)
@@ -241,15 +255,18 @@ void atsx11::onBatteryInfoReady()
         ui->lbl_isCharging->setPixmap(QPixmap(":/images/assets/lightning.png"));
         ui->lbl_debug->setText(QStringLiteral("Mouse is charging"));
         ui->pbar_batteryinfo->setValue(0);
+        m_batteryTimer->start(2000);
     } else if (battery < 0) {
         ui->lbl_isCharging->setEnabled(false);
         ui->lbl_debug->setText(QStringLiteral("<html><head/><body><p><span style='color:orange;'>Battery info unavailable</span></p></body></html>"));
         ui->pbar_batteryinfo->setValue(0);
+        m_batteryTimer->start(2000);
     } else {
         ui->lbl_isCharging->setEnabled(true);
         ui->lbl_isCharging->setPixmap(QPixmap());
         ui->lbl_debug->setText(QStringLiteral("Battery: ") + QString::number(battery) + QStringLiteral("%"));
         ui->pbar_batteryinfo->setValue(battery);
+        m_batteryTimer->start(30000);
     }
 }
 
@@ -336,6 +353,7 @@ void atsx11::onTrayRestoreRequested()
     show();
     raise();
     activateWindow();
+    refreshBattery();
 }
 
 void atsx11::onTrayQuitRequested()
