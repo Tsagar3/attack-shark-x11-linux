@@ -39,6 +39,7 @@ bool setEnabled(bool enabled)
         "Type=Application\n"
         "Name=Attack Shark X11\n"
         "Comment=Configuración del mouse Attack Shark\n"
+        "Icon=attackshark-x11\n"
         "Exec=\"%1\" --hidden\n"
         "Terminal=false\n"
         "StartupNotify=false\n"

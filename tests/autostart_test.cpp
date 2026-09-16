@@ -54,6 +54,8 @@ int main(int argc, char *argv[])
         "desktop file has StartupNotify=false");
     EXPECT(fileContains(filePath, QStringLiteral("X-GNOME-Autostart-enabled=true")),
         "desktop file has X-GNOME-Autostart-enabled=true");
+    EXPECT(fileContains(filePath, QStringLiteral("Icon=attackshark-x11")),
+        "desktop file has Icon=attackshark-x11");
 
     EXPECT(autostart::setEnabled(true), "setEnabled(true) is idempotent");
     EXPECT(autostart::isEnabled(), "still enabled after second enable");
