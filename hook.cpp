@@ -338,7 +338,43 @@ int applySettingsFromUser(
 }
 
 
+namespace {
+
+constexpr uint8_t kPacketSig0   = 0x03;
+constexpr uint8_t kPacketSig1   = 0x55;
+constexpr uint8_t kPacketMsgBattery = 0x40;
+constexpr int     kMinPacketLen = 5;
+constexpr int     kMaxPercent   = 100;
+constexpr int     kBatteryNoData = -1;
+constexpr int     kBatteryCharging = -2;
+
+} // namespace
+
+// Byte 3 of the packet is the battery status, not part of the signature:
+// 0x01 NORMAL, 0x02 FULLY_CHARGED, 0x03 CHARGING_IN_PROGRESS. Byte 4 is the
+// percentage. The old check required byte 3 to equal 0x01, so every packet the
+// mouse actually sends was rejected and the reading never left the error state.
 // https://github.com/HarukaYamamoto0/attack-shark-x11-driver/blob/80fb0e69e59f2aa7185951622bcdadeb0bd4af0e/docs/battery-status.md
+BatteryInfo decodeBatteryPacket(const uint8_t *data, int len)
+{
+    BatteryInfo info;
+
+    if (!data || len < kMinPacketLen)
+        return info;
+    if (data[0] != kPacketSig0 || data[1] != kPacketSig1 || data[2] != kPacketMsgBattery)
+        return info;
+
+    const uint8_t status = data[3];
+    if (status != kBatteryStatusNormal
+        && status != kBatteryStatusFullyCharged
+        && status != kBatteryStatusCharging)
+        return info;
+
+    info.status = status;
+    info.percent = data[4] > kMaxPercent ? kMaxPercent : data[4];
+    return info;
+}
+
 int getBatteryInfo(const QString &devicePath)
 {
     constexpr uint8_t  kBatteryIface    = 2;
@@ -369,7 +405,7 @@ int getBatteryInfo(const QString &devicePath)
         return -1;
     }
 
-    int battery = -1; // -1 = error, -2 = charging (interface up but no wireless data)
+    int battery = kBatteryNoData; // -1 = no data, -2 = charging
 
     bool driverWasAttached = false;
     if (libusb_kernel_driver_active(handle, kBatteryIface) == 1) {
@@ -408,19 +444,17 @@ int getBatteryInfo(const QString &devicePath)
         if (rc != 0 && rc != LIBUSB_ERROR_TIMEOUT)
             break;
 
-        if (transferred >= kMinPacketLen &&
-            buf[0] == kSig0 &&
-            buf[1] == kSig1 &&
-            buf[2] == kSig2 &&
-            buf[3] == kSig3)
-        {
-            battery = static_cast<int>(buf[4]);
+        const BatteryInfo parsed = decodeBatteryPacket(buf, transferred);
+        if (parsed.valid()) {
+            battery = (parsed.status == kBatteryStatusCharging) ? kBatteryCharging
+                                                                : parsed.percent;
+            break;
         }
     }
 
-    if (battery < 0)
-        battery = -2;
-
+    // -2 is reserved for "actually charging". No battery packet at all is -1,
+    // which the window renders as "battery info unavailable" rather than
+    // claiming the mouse is charging when we simply did not hear from it.
     libusb_release_interface(handle, kBatteryIface);
     if (driverWasAttached)
         libusb_attach_kernel_driver(handle, kBatteryIface);
