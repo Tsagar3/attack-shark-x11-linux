@@ -7,7 +7,22 @@
 
 #include "dpi.h"
 
+// Reason codes returned by applySettingsFromUser. The window shows the number
+// it gets back, so they are part of the user facing behaviour.
+enum ApplyError {
+    kApplyOk = 0,
+    kApplyInvalidSettings = -1,
+    kApplyNoUdev = -2,
+    kApplyDeviceNotFound = -3,
+    kApplyReportFailed = -5,
+    kApplyNoPermission = -6,
+};
+
 int applySettingsFromUser(const QString &devicePath, int colorMode, int pollingRate, bool angleSnap, int keyRespTime, int sleepTime, int deepSleepTime, bool rippleControl, const int dpiValues[6], int activeDpiStage);
+
+// Explains why the device cannot be written to, including the command that fixes
+// it. Empty string when the device can be opened.
+QString describeAccessProblem(const QString &devicePath);
 
 // Status byte carried by the battery packet. Byte 3 of the packet is this field,
 // it is not part of the signature.

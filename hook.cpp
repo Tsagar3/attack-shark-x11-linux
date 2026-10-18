@@ -111,12 +111,18 @@ bool resolveUsbDevice(struct udev *udev, const QString &inputPath, UsbDevice &de
     return ok;
 }
 
-libusb_device_handle *openUsbDevice(libusb_context *ctx, const UsbDevice &device)
+libusb_device_handle *openUsbDevice(libusb_context *ctx, const UsbDevice &device, int *errorOut = nullptr)
 {
+    if (errorOut)
+        *errorOut = LIBUSB_SUCCESS;
+
     libusb_device **list = nullptr;
     const ssize_t count = libusb_get_device_list(ctx, &list);
-    if (count < 0)
+    if (count < 0) {
+        if (errorOut)
+            *errorOut = LIBUSB_ERROR_OTHER;
         return nullptr;
+    }
 
     libusb_device_handle *handle = nullptr;
 
@@ -133,9 +139,14 @@ libusb_device_handle *openUsbDevice(libusb_context *ctx, const UsbDevice &device
         if (desc.idVendor != device.vid || desc.idProduct != device.pid)
             continue;
 
-        if (libusb_open(entry, &handle) == 0)
+        const int rc = libusb_open(entry, &handle);
+        if (rc == 0)
             break;
 
+        // Remember why: LIBUSB_ERROR_ACCESS is a missing udev rule, which the
+        // user can act on, while NO_DEVICE just means it was unplugged.
+        if (errorOut && rc != LIBUSB_ERROR_NO_DEVICE && *errorOut == LIBUSB_SUCCESS)
+            *errorOut = rc;
         handle = nullptr;
     }
 
@@ -148,9 +159,10 @@ bool sendReport(
     const UsbDevice &device,
     uint16_t reportId,
     const uint8_t *data,
-    int length)
+    int length,
+    int *accessError = nullptr)
 {
-    libusb_device_handle *handle = openUsbDevice(ctx, device);
+    libusb_device_handle *handle = openUsbDevice(ctx, device, accessError);
     if (!handle)
         return false;
 
@@ -284,33 +296,33 @@ int applySettingsFromUser(
     int activeDpiStage)
 {
     if (colorMode < 0 || colorMode >= 4 || pollingRate < 0 || pollingRate >= 4)
-        return -1;
+        return kApplyInvalidSettings;
     if (sleepTime < 1 || sleepTime > 30)
-        return -1;
+        return kApplyInvalidSettings;
     if (deepSleepTime < 1 || deepSleepTime > 60)
-        return -1;
+        return kApplyInvalidSettings;
     if (keyRespTime < 4 || keyRespTime > 50 || keyRespTime % 2 != 0)
-        return -1;
+        return kApplyInvalidSettings;
     for (int i = 0; i < 6; ++i)
         if (dpiValues[i] < 50 || dpiValues[i] > 26000)
-            return -1;
+            return kApplyInvalidSettings;
     if (activeDpiStage < 1 || activeDpiStage > 6)
-        return -1;
+        return kApplyInvalidSettings;
 
     struct udev *udev = udev_new();
     if (!udev)
-        return -2;
+        return kApplyNoUdev;
 
     UsbDevice device;
     if (!resolveUsbDevice(udev, devicePath, device)) {
         udev_unref(udev);
-        return -3;
+        return kApplyDeviceNotFound;
     }
     udev_unref(udev);
 
     libusb_context *ctx = nullptr;
     if (libusb_init(&ctx) != 0)
-        return -2;
+        return kApplyNoUdev;
 
     // Apply the polling rate
     const uint8_t pollingReport[9] = {
@@ -319,22 +331,76 @@ int applySettingsFromUser(
         POLLING_RATES[pollingRate][1],
         0x00, 0x00, 0x00, 0x00,
     };
-    const bool pollingOk = sendReport(ctx, device, 0x0306, pollingReport, sizeof(pollingReport));
+    int accessError = LIBUSB_SUCCESS;
+    const bool pollingOk = sendReport(ctx, device, 0x0306, pollingReport, sizeof(pollingReport), &accessError);
     usleep(kReportDelayUs);
 
     // Apply the LED color mode (with sleep timer, deep sleep timer, and debounce/key response time embedded)
     uint8_t colorReport[15];
     buildColorReport(colorMode, sleepTime, deepSleepTime, keyRespTime, colorReport);
-    const bool colorOk = sendReport(ctx, device, 0x0305, colorReport, sizeof(colorReport));
+    const bool colorOk = sendReport(ctx, device, 0x0305, colorReport, sizeof(colorReport), &accessError);
     usleep(kReportDelayUs);
 
     // Apply DPI configuration (stages, active stage, angle snap, ripple control)
     uint8_t dpiReport[56];
     buildDpiReport(dpiValues, activeDpiStage, angleSnap, rippleControl, dpiReport);
-    const bool angleSnapOk = sendReport(ctx, device, 0x0304, dpiReport, sizeof(dpiReport));
+    const bool angleSnapOk = sendReport(ctx, device, 0x0304, dpiReport, sizeof(dpiReport), &accessError);
 
     libusb_exit(ctx);
-    return (pollingOk && colorOk && angleSnapOk) ? 0 : -5;
+
+    if (pollingOk && colorOk && angleSnapOk)
+        return kApplyOk;
+
+    // A refused open means the udev rule is not in place. That is the one
+    // failure the user can fix, so it gets its own code and its own message
+    // instead of being lumped in with every other transfer failure.
+    if (accessError == LIBUSB_ERROR_ACCESS)
+        return kApplyNoPermission;
+
+    return kApplyReportFailed;
+}
+
+QString describeAccessProblem(const QString &devicePath)
+{
+    struct udev *udev = udev_new();
+    if (!udev)
+        return QString();
+
+    UsbDevice device;
+    const bool resolved = resolveUsbDevice(udev, devicePath, device);
+    udev_unref(udev);
+    if (!resolved) {
+        return QObject::tr("The mouse is no longer connected. Plug it back in and try again.");
+    }
+
+    libusb_context *ctx = nullptr;
+    if (libusb_init(&ctx) != 0)
+        return QString();
+
+    int error = LIBUSB_SUCCESS;
+    libusb_device_handle *handle = openUsbDevice(ctx, device, &error);
+    if (handle) {
+        libusb_close(handle);
+        libusb_exit(ctx);
+        return QString();
+    }
+
+    const bool unplugged = (error == LIBUSB_ERROR_NO_DEVICE);
+    libusb_exit(ctx);
+
+    if (unplugged)
+        return QObject::tr("The mouse is no longer connected. Plug it back in and try again.");
+
+    return QObject::tr(
+        "This user does not have permission to write to the mouse, so it cannot be "
+        "configured without root.\n\n"
+        "Installing the application also installs a udev rule that grants access to "
+        "the user at the machine:\n\n"
+        "    sudo cmake --install <build-dir>\n\n"
+        "If the application was already installed, reload the rules with:\n\n"
+        "    sudo udevadm control --reload-rules && sudo udevadm trigger\n\n"
+        "and unplug the mouse and plug it back in. Running the application with sudo "
+        "works too, but gives it full access to the machine.");
 }
 
 

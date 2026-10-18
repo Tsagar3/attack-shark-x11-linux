@@ -212,6 +212,21 @@ void atsx11::on_btn_apply_clicked()
     const int result = applySettingsFromUser(m_currentDevicePath, color, prate, angleSnap, keyRespTime, sleepTime, deepSleepTime, rippleCtrl, dpi, activeDpiStage);
     if (result != 0) {
         ui->lbl_debug->setText(QStringLiteral("<html><head/><body><p><span style='color:red;'>Error: failed to apply settings</span></p></body></html>"));
+
+        // A refused open means the udev rule is missing. That is the one failure
+        // the user can actually do something about, so say what to run instead of
+        // reporting a bare code.
+        if (result == kApplyNoPermission) {
+            const QString reason = describeAccessProblem(m_currentDevicePath);
+            QMessageBox::warning(
+                this,
+                QStringLiteral("No permission"),
+                reason.isEmpty()
+                    ? QStringLiteral("This user does not have permission to write to the mouse.")
+                    : reason);
+            return;
+        }
+
         QMessageBox::warning(this, QStringLiteral("Error"), QStringLiteral("Failed to apply settings to the device (code %1).").arg(result));
         return;
     }
