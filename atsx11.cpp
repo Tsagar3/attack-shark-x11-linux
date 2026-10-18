@@ -42,8 +42,7 @@ atsx11::atsx11(QWidget *parent)
     ui->lbl_isCharging->setEnabled(false);
     ui->btn_apply->setEnabled(false);
 
-    m_dpiBar = new DpiBarWidget(this);
-    m_dpiBar->setGeometry(20, 300, 700, 150);
+    m_dpiBar = ui->dpi_bar;
 
     m_batteryTimer = new QTimer(this);
     m_batteryTimer->setInterval(30000);

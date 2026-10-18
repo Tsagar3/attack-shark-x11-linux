@@ -5,68 +5,255 @@
 #include <QFontMetrics>
 #include <QKeyEvent>
 #include <QLineEdit>
-#include <QLinearGradient>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QStyle>
+#include <QStyleOptionSlider>
+#include <QVector>
 #include <QWheelEvent>
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace {
-constexpr int kMargin = 40;      // horizontal padding of track inside widget
-constexpr int kTrackHeight = 8;
-constexpr int kPointRadius = 7;  // 14px diameter points
-constexpr int kHitRadius = 8;    // hit-test tolerance around point center
-constexpr int kLabelAbove = 34;  // px from point center up to its value label
-constexpr int kEditorWidth = 100;
-constexpr int kEditorHeight = 24;
 
-const QColor kAccent(42, 130, 218);        // #2a82da
-const QColor kInactive(81, 73, 74);        // #51494a
-const QColor kInactiveBorder(140, 140, 140);
-const QColor kLabelGray(170, 170, 170);
-const QColor kTrackDark(40, 40, 40);
-const QColor kTrackLight(70, 70, 70);
+// Resolution handed to QStyle when it paints the groove and the handles. The bar
+// only has six stages, so this is just enough precision for the fill to land on
+// the pixel it should.
+constexpr int kStyleResolution = 10000;
+
+constexpr int kLabelGap = 6;      // px between a row of text and the groove
+constexpr int kHitPadding = 4;    // px of slack around a handle for hit-testing
+constexpr int kHitMinRadius = 6;
+constexpr int kEditorPadding = 8; // px of slack inside the inline editor
+constexpr int kEditorMinWidth = 90;
+
 } // namespace
 
 DpiBarWidget::DpiBarWidget(QWidget *parent)
     : QWidget(parent)
 {
     setFocusPolicy(Qt::StrongFocus);
-    setMinimumSize(500, 120);
+    setAttribute(Qt::WA_OpaquePaintEvent, false);
+    // The bar is a fixed stack of rows, so it asks for its sizeHint height and
+    // does not stretch inside its container.
+    setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
 }
 
-QRect DpiBarWidget::trackRect() const
+int DpiBarWidget::handleLength() const
 {
-    const int y = height() - kTrackHeight - 42;
-    return QRect(kMargin, y, width() - 2 * kMargin, kTrackHeight);
+    return style()->pixelMetric(QStyle::PM_SliderControlThickness, nullptr, this);
+}
+
+int DpiBarWidget::grooveThickness() const
+{
+    return style()->pixelMetric(QStyle::PM_SliderThickness, nullptr, this);
+}
+
+int DpiBarWidget::handleHitRadius() const
+{
+    return std::max(handleLength() / 2, kHitMinRadius) + kHitPadding;
+}
+
+int DpiBarWidget::mainLabelRowTop() const
+{
+    // Row 0 is reserved for the labels that get staggered upwards when the
+    // stages bunch up on the left of the logarithmic scale, row 1 carries the
+    // labels that fit.
+    return kLabelGap + fontMetrics().height() + kLabelGap;
+}
+
+QRect DpiBarWidget::grooveRowRect() const
+{
+    // Stacked rows: staggered stage labels, stage labels, groove, range labels.
+    const int labelHeight = fontMetrics().height();
+    const int top = mainLabelRowTop() + labelHeight + kLabelGap;
+    const int height = std::max(0, this->height() - top - labelHeight - kLabelGap);
+    return QRect(0, top, this->width(), height);
+}
+
+QRect DpiBarWidget::grooveRect() const
+{
+    QStyleOptionSlider opt;
+    opt.initFrom(this);
+    opt.orientation = Qt::Horizontal;
+    opt.rect = grooveRowRect();
+    opt.minimum = 0;
+    opt.maximum = kStyleResolution;
+    opt.sliderPosition = 0;
+    opt.sliderValue = 0;
+    return style()->subControlRect(QStyle::CC_Slider, &opt, QStyle::SC_SliderGroove);
+}
+
+QStyleOptionSlider DpiBarWidget::sliderOption(int sliderPosition) const
+{
+    QStyleOptionSlider opt;
+    opt.initFrom(this);
+    opt.orientation = Qt::Horizontal;
+    opt.rect = grooveRowRect();
+    opt.minimum = 0;
+    opt.maximum = kStyleResolution;
+    opt.pageStep = 0;
+    opt.singleStep = 0;
+    opt.sliderPosition = sliderPosition;
+    opt.sliderValue = sliderPosition;
+    return opt;
+}
+
+int DpiBarWidget::stylePositionForStage(int stage) const
+{
+    const QRect groove = grooveRect();
+    if (groove.width() <= 0)
+        return 0;
+    const int offset = std::clamp(pointCenter(stage).x() - groove.left(), 0, groove.width());
+    return static_cast<int>(std::llround(
+        static_cast<double>(offset) * kStyleResolution / groove.width()));
 }
 
 QPoint DpiBarWidget::pointCenter(int stage) const
 {
-    const QRect t = trackRect();
+    const QRect groove = grooveRect();
     const double pos = dpiscale::dpiToPos(m_values[stage]);
-    const int x = t.left() + static_cast<int>(std::llround(pos * t.width()));
-    return QPoint(x, t.center().y());
+    const int x = groove.left()
+        + static_cast<int>(std::llround(pos * std::max(0, groove.width())));
+    return QPoint(x, groove.center().y());
 }
 
 int DpiBarWidget::hitTestPoint(const QPoint &p) const
 {
-    const int hitSq = kHitRadius * kHitRadius;
+    const int radius = handleHitRadius();
+    const int radiusSq = radius * radius;
     int best = -1;
-    int bestSq = hitSq;
+    int bestSq = radiusSq;
     for (int i = 0; i < dpiscale::kNumStages; ++i) {
-        const QPoint c = pointCenter(i);
-        const int dx = c.x() - p.x();
-        const int dy = c.y() - p.y();
-        const int d = dx * dx + dy * dy;
-        if (d <= bestSq) {
-            bestSq = d;
+        const QPoint center = pointCenter(i);
+        const int dx = center.x() - p.x();
+        const int dy = center.y() - p.y();
+        const int distance = dx * dx + dy * dy;
+        if (distance <= bestSq) {
+            bestSq = distance;
             best = i;
         }
     }
     return best;
+}
+
+QSize DpiBarWidget::sizeHint() const
+{
+    const QFontMetrics fm = fontMetrics();
+    const int height = kLabelGap * 4 + fm.height() * 3 + grooveThickness();
+    const int width = handleLength() * 2 + fm.horizontalAdvance(QStringLiteral("26000")) * 3;
+    return QSize(std::max(width, 320), height);
+}
+
+QSize DpiBarWidget::minimumSizeHint() const
+{
+    const QFontMetrics fm = fontMetrics();
+    return QSize(handleLength() * 4 + fm.horizontalAdvance(QStringLiteral("26000")),
+                 kLabelGap * 4 + fm.height() * 3 + grooveThickness());
+}
+
+void DpiBarWidget::paintGroove(QPainter &p)
+{
+    // Let the style paint the groove so it is the exact same colour and
+    // thickness as the QSlider controls elsewhere in the window. The fill stops
+    // at the active stage, which the style derives from sliderPosition.
+    QStyleOptionSlider opt = sliderOption(stylePositionForStage(m_activeStage - 1));
+    opt.subControls = QStyle::SC_SliderGroove;
+    style()->drawComplexControl(QStyle::CC_Slider, &opt, &p, this);
+}
+
+void DpiBarWidget::paintStageLabels(QPainter &p)
+{
+    const QFontMetrics fm = fontMetrics();
+    const int labelHeight = fm.height();
+    const int mainRowTop = mainLabelRowTop();
+    const int activeIndex = m_activeStage - 1;
+
+    // Labels are centred on their handle. Two rows are available: the main row
+    // and the one above it. A label that fits neither is dropped rather than
+    // overprinted, because six low DPI stages bunch up on the left of the
+    // logarithmic scale and there is simply no room for all of them. The active
+    // stage is always drawn, last, over an opaque backing so it stays readable.
+    struct Placed {
+        QRect rect;
+        int stage;
+        bool active;
+    };
+    QVector<Placed> placed;
+    int rightEdge[2] = { std::numeric_limits<int>::min(), std::numeric_limits<int>::min() };
+
+    for (int i = 0; i < dpiscale::kNumStages; ++i) {
+        QFont font = p.font();
+        font.setBold(i == activeIndex);
+        const QFontMetrics stageFm(font);
+        const int width = stageFm.horizontalAdvance(QString::number(m_values[i])) + 6;
+        const int left = std::clamp(pointCenter(i).x() - width / 2,
+                                    0, std::max(0, this->width() - width));
+
+        // Prefer the main row, fall back to the row above.
+        int row = -1;
+        for (int r = 1; r >= 0; --r) {
+            if (left > rightEdge[r]) {
+                row = r;
+                break;
+            }
+        }
+        if (row < 0 && i == activeIndex) {
+            row = (rightEdge[0] <= rightEdge[1]) ? 0 : 1;
+        }
+        if (row < 0)
+            continue;
+
+        rightEdge[row] = left + width;
+        placed.append({ QRect(left, row == 0 ? mainRowTop - labelHeight : mainRowTop,
+                              width, labelHeight),
+                        i, i == activeIndex });
+    }
+
+    std::sort(placed.begin(), placed.end(),
+              [](const Placed &a, const Placed &b) { return a.active < b.active; });
+
+    for (const Placed &label : placed) {
+        if (label.active) {
+            p.fillRect(label.rect, palette().color(QPalette::Window));
+            p.setPen(palette().color(QPalette::Highlight));
+        } else {
+            p.setPen(palette().color(QPalette::Disabled, QPalette::WindowText));
+        }
+        QFont font = p.font();
+        font.setBold(label.active);
+        p.setFont(font);
+        p.drawText(label.rect, Qt::AlignCenter, QString::number(m_values[label.stage]));
+    }
+}
+
+void DpiBarWidget::paintPoints(QPainter &p)
+{
+    for (int i = 0; i < dpiscale::kNumStages; ++i) {
+        const bool active = (i + 1 == m_activeStage);
+        QStyleOptionSlider opt = sliderOption(stylePositionForStage(i));
+        opt.subControls = QStyle::SC_SliderHandle;
+        // Fusion paints the handle in the highlight colour only while the handle
+        // is the active sub-control, which is what tells the selected stage apart.
+        opt.activeSubControls = active ? QStyle::SC_SliderHandle : QStyle::SC_None;
+        style()->drawComplexControl(QStyle::CC_Slider, &opt, &p, this);
+    }
+}
+
+void DpiBarWidget::paintRangeLabels(QPainter &p)
+{
+    const QFontMetrics fm = fontMetrics();
+    const QRect groove = grooveRect();
+    const QRect row(groove.left(), groove.bottom() + kLabelGap,
+                    groove.width(), fm.height());
+
+    p.setPen(palette().color(QPalette::Disabled, QPalette::WindowText));
+    p.drawText(QRect(row.left(), row.top(), row.width() / 2, row.height()),
+               Qt::AlignLeft | Qt::AlignVCenter, QStringLiteral("50"));
+    p.drawText(QRect(row.center().x(), row.top(), row.width() / 2, row.height()),
+               Qt::AlignRight | Qt::AlignVCenter, QStringLiteral("26000"));
 }
 
 void DpiBarWidget::paintEvent(QPaintEvent *)
@@ -74,57 +261,10 @@ void DpiBarWidget::paintEvent(QPaintEvent *)
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing, true);
 
-    const QRect track = trackRect();
-    const int bandY = track.center().y();
-
-    // Track base
-    QLinearGradient grad(track.left(), 0, track.right(), 0);
-    grad.setColorAt(0.0, kTrackDark);
-    grad.setColorAt(1.0, kTrackLight);
-    p.setPen(Qt::NoPen);
-    p.setBrush(grad);
-    p.drawRoundedRect(track, kTrackHeight / 2, kTrackHeight / 2);
-
-    // Accent fill between leftmost point and the active point
-    const int xLeft = pointCenter(0).x();
-    const int xActive = pointCenter(m_activeStage - 1).x();
-    if (xActive > xLeft) {
-        p.setBrush(kAccent);
-        p.drawRoundedRect(QRect(xLeft, track.top(), xActive - xLeft, track.height()),
-                          kTrackHeight / 2, kTrackHeight / 2);
-    }
-
-    // Points + value labels
-    for (int i = 0; i < dpiscale::kNumStages; ++i) {
-        const QPoint c = pointCenter(i);
-        const bool active = (i + 1 == m_activeStage);
-
-        QFont f = p.font();
-        f.setPixelSize(active ? 12 : 10);
-        f.setBold(active);
-        p.setFont(f);
-
-        const QString text = QString::number(m_values[i]);
-        const QFontMetrics fm(f);
-        const int tw = fm.horizontalAdvance(text);
-        const QRect lr(c.x() - tw / 2 - 3, bandY - kLabelAbove, tw + 6, fm.height());
-        p.setPen(active ? kAccent.lighter(155) : kLabelGray);
-        p.drawText(lr, Qt::AlignCenter, text);
-
-        p.setPen(active ? Qt::white : kInactiveBorder);
-        p.setBrush(active ? kAccent : kInactive);
-        p.drawEllipse(c, kPointRadius, kPointRadius);
-    }
-
-    // Range extremes
-    QFont f = p.font();
-    f.setPixelSize(9);
-    p.setFont(f);
-    p.setPen(kLabelGray);
-    p.drawText(QRect(track.left() - 34, bandY + 14, 60, 14),
-               Qt::AlignCenter, QStringLiteral("50"));
-    p.drawText(QRect(track.right() - 26, bandY + 14, 60, 14),
-               Qt::AlignCenter, QStringLiteral("26000"));
+    paintStageLabels(p);
+    paintGroove(p);
+    paintPoints(p);
+    paintRangeLabels(p);
 }
 
 void DpiBarWidget::mousePressEvent(QMouseEvent *event)
@@ -146,8 +286,12 @@ void DpiBarWidget::mouseMoveEvent(QMouseEvent *event)
 {
     if (m_dragStage < 0)
         return;
-    const QRect t = trackRect();
-    const double pos = (event->pos().x() - t.left()) / static_cast<double>(t.width());
+    const QRect groove = grooveRect();
+    if (groove.width() <= 0) {
+        event->accept();
+        return;
+    }
+    const double pos = static_cast<double>(event->pos().x() - groove.left()) / groove.width();
     m_values[m_dragStage] = dpiscale::posToDpi(pos, true);
     dpiscale::clampOrdered(m_values);
     update();
@@ -195,7 +339,7 @@ void DpiBarWidget::wheelEvent(QWheelEvent *event)
     int stage = hitTestPoint(wheelPos);
     if (stage < 0) {
         // On the track but not on a point: adjust the active stage.
-        const QRect band = trackRect().adjusted(-40, -16, 40, 16);
+        const QRect band = grooveRect().adjusted(-40, -16, 40, 16);
         if (!band.contains(wheelPos)) {
             event->ignore();
             return;
@@ -270,15 +414,20 @@ void DpiBarWidget::openEditor(int stage)
     closeEditor();
     m_editStage = stage;
 
+    const QFontMetrics fm = fontMetrics();
+    const int editorWidth = std::max(
+        kEditorMinWidth, fm.horizontalAdvance(QStringLiteral("26000")) + kEditorPadding * 3);
+    const int editorHeight = fm.height() + kEditorPadding * 2;
+
     m_editor = new QLineEdit(this);
     m_editor->setText(QString::number(m_values[stage]));
     m_editor->selectAll();
     m_editor->setAlignment(Qt::AlignCenter);
-    m_editor->setFixedSize(kEditorWidth, kEditorHeight);
+    m_editor->setFixedSize(editorWidth, editorHeight);
 
     const QPoint c = pointCenter(stage);
-    const int x = std::clamp(c.x() - kEditorWidth / 2, 0, width() - kEditorWidth);
-    const int y = std::clamp(c.y() - kEditorHeight / 2, 4, height() - kEditorHeight - 4);
+    const int x = std::clamp(c.x() - editorWidth / 2, 0, width() - editorWidth);
+    const int y = std::clamp(c.y() - editorHeight / 2, kLabelGap, height() - editorHeight - kLabelGap);
     m_editor->move(x, y);
 
     m_editor->installEventFilter(this);

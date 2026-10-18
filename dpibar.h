@@ -1,9 +1,14 @@
 #ifndef DPIBAR_H
 #define DPIBAR_H
 
+#include <QPoint>
+#include <QRect>
+#include <QSize>
 #include <QWidget>
 
 class QLineEdit;
+class QPainter;
+class QStyleOptionSlider;
 
 class DpiBarWidget : public QWidget
 {
@@ -16,6 +21,9 @@ public:
     void setActiveStage(int stage);
     int activeStage() const { return m_activeStage; }
     const int *values() const { return m_values; }
+
+    QSize sizeHint() const override;
+    QSize minimumSizeHint() const override;
 
 signals:
     void valueChanged(int stage, int dpi);
@@ -32,9 +40,25 @@ protected:
     bool eventFilter(QObject *obj, QEvent *event) override;
 
 private:
-    QRect trackRect() const;
+    // Geometry comes from the style and from the font metrics rather than from
+    // hardcoded pixels, so the bar tracks the platform theme, the HiDPI scale and
+    // the user's font size the same way the rest of the window does.
+    QRect grooveRowRect() const;
+    QRect grooveRect() const;
+    int mainLabelRowTop() const;
+    QStyleOptionSlider sliderOption(int sliderPosition) const;
+    int stylePositionForStage(int stage) const;
     QPoint pointCenter(int stage) const;
     int hitTestPoint(const QPoint &p) const;
+    int handleHitRadius() const;
+    int grooveThickness() const;
+    int handleLength() const;
+
+    void paintGroove(QPainter &p);
+    void paintStageLabels(QPainter &p);
+    void paintPoints(QPainter &p);
+    void paintRangeLabels(QPainter &p);
+
     void stepValue(int stage, int delta);
     void openEditor(int stage);
     void closeEditor();
