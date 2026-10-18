@@ -82,6 +82,14 @@ install(FILES packaging/icons/attackshark-x11.png
     DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/256x256/apps
 )
 
+# Grants the logged-in user access to the mouse so it runs without root.
+# Absolute on purpose: udev reads /etc/udev/rules.d whatever the install prefix
+# is, while CMAKE_INSTALL_SYSCONFDIR is relative to it and would land the rule
+# in, say, /usr/local/etc/udev/rules.d where nothing looks.
+install(FILES packaging/98-attackshark-x11.rules
+    DESTINATION /etc/udev/rules.d
+)
+
 if(QT_VERSION_MAJOR EQUAL 6)
     qt_finalize_executable(attackshark-x11)
 endif()
