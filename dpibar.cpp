@@ -1,8 +1,11 @@
 #include "dpibar.h"
 #include "dpiscale.h"
 
+#include <QApplication>
 #include <QEvent>
+#include <QFocusEvent>
 #include <QFontMetrics>
+#include <QHideEvent>
 #include <QKeyEvent>
 #include <QLineEdit>
 #include <QMouseEvent>
@@ -28,6 +31,7 @@ constexpr int kHitPadding = 4;    // px of slack around a handle for hit-testing
 constexpr int kHitMinRadius = 6;
 constexpr int kEditorPadding = 8; // px of slack inside the inline editor
 constexpr int kEditorMinWidth = 90;
+constexpr int kWheelNotch = 120;  // eighths of a degree in one wheel notch
 
 } // namespace
 
@@ -269,23 +273,44 @@ void DpiBarWidget::paintEvent(QPaintEvent *)
 
 void DpiBarWidget::mousePressEvent(QMouseEvent *event)
 {
-    if (event->button() != Qt::LeftButton)
+    if (event->button() != Qt::LeftButton) {
+        QWidget::mousePressEvent(event);
         return;
+    }
     const int stage = hitTestPoint(event->pos());
-    if (stage < 0)
+    if (stage < 0) {
+        QWidget::mousePressEvent(event);
         return;
-    grabMouse();
-    m_dragStage = stage;
-    m_dragStartValue = m_values[stage];
+    }
+    // Qt already grabs the mouse implicitly for the duration of the press, and
+    // that implicit grab is what keeps the move and release events coming when
+    // the pointer leaves the window. A manual grabMouse() on top of it is what
+    // breaks under Wayland and XWayland, which is what Plasma runs, so the drag
+    // relies on the implicit one only now.
+    m_pressStage = stage;
+    m_pressPos = event->pos();
+    m_dragStage = -1;
     setActiveStage(stage + 1);
-    setCursor(Qt::ClosedHandCursor);
     event->accept();
 }
 
 void DpiBarWidget::mouseMoveEvent(QMouseEvent *event)
 {
-    if (m_dragStage < 0)
+    if (m_pressStage < 0) {
+        QWidget::mouseMoveEvent(event);
         return;
+    }
+    if (m_dragStage < 0) {
+        // Not a drag yet: wait for the pointer to travel past the platform drag
+        // distance before touching any value, so a plain click or a double click
+        // on a handle cannot nudge it.
+        if ((event->pos() - m_pressPos).manhattanLength() < QApplication::startDragDistance())
+            return;
+        m_dragStage = m_pressStage;
+        m_dragStartValue = m_values[m_dragStage];
+        setCursor(Qt::ClosedHandCursor);
+    }
+
     const QRect groove = grooveRect();
     if (groove.width() <= 0) {
         event->accept();
@@ -300,16 +325,54 @@ void DpiBarWidget::mouseMoveEvent(QMouseEvent *event)
 
 void DpiBarWidget::mouseReleaseEvent(QMouseEvent *event)
 {
-    if (m_dragStage < 0)
+    if (event->button() != Qt::LeftButton) {
+        QWidget::mouseReleaseEvent(event);
         return;
+    }
+    m_pressStage = -1;
+    endDrag();
+    event->accept();
+}
+
+void DpiBarWidget::endDrag()
+{
+    if (m_dragStage < 0) {
+        unsetCursor();
+        return;
+    }
     const int stage = m_dragStage;
+    const int previous = m_dragStartValue;
     m_dragStage = -1;
-    releaseMouse();
     unsetCursor();
     update();
-    if (m_values[stage] != m_dragStartValue)
+    if (m_values[stage] != previous)
         emit valueChanged(stage + 1, m_values[stage]);
-    event->accept();
+}
+
+void DpiBarWidget::focusOutEvent(QFocusEvent *event)
+{
+    // Losing focus mid drag means the release event will never arrive. Without
+    // this the widget stays stuck with a closed-hand cursor and a half applied
+    // value, which is the "stuck drag" reported on Plasma.
+    m_pressStage = -1;
+    endDrag();
+    QWidget::focusOutEvent(event);
+}
+
+void DpiBarWidget::hideEvent(QHideEvent *event)
+{
+    m_pressStage = -1;
+    endDrag();
+    QWidget::hideEvent(event);
+}
+
+bool DpiBarWidget::event(QEvent *event)
+{
+    if (event->type() == QEvent::WindowDeactivate) {
+        m_pressStage = -1;
+        endDrag();
+    }
+    return QWidget::event(event);
 }
 
 void DpiBarWidget::mouseDoubleClickEvent(QMouseEvent *event)
@@ -323,18 +386,28 @@ void DpiBarWidget::mouseDoubleClickEvent(QMouseEvent *event)
 
 void DpiBarWidget::wheelEvent(QWheelEvent *event)
 {
-    const int deltaY = event->angleDelta().y();
-    if (deltaY == 0) {
-        event->ignore();
-        return;
-    }
-    const int dir = (deltaY > 0) ? dpiscale::kStep : -dpiscale::kStep;
-
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
     const QPoint wheelPos = event->position().toPoint();
 #else
     const QPoint wheelPos = event->pos();
 #endif
+    const int deltaY = event->angleDelta().y();
+    if (deltaY == 0) {
+        event->ignore();
+        return;
+    }
+
+    // High resolution wheels and trackpads report a stream of small deltas, so
+    // stepping once per event makes the value jump on every pixel of movement.
+    // Accumulate until there is a full notch worth of travel and step once per
+    // notch, which is what the rest of the desktop does.
+    m_wheelRemainder += deltaY;
+    const int notches = m_wheelRemainder / kWheelNotch;
+    if (notches == 0) {
+        event->ignore();
+        return;
+    }
+    m_wheelRemainder -= notches * kWheelNotch;
 
     int stage = hitTestPoint(wheelPos);
     if (stage < 0) {
@@ -346,7 +419,10 @@ void DpiBarWidget::wheelEvent(QWheelEvent *event)
         }
         stage = m_activeStage - 1;
     }
-    stepValue(stage, dir);
+
+    const int dir = (notches > 0) ? dpiscale::kStep : -dpiscale::kStep;
+    for (int i = 0; i < std::abs(notches); ++i)
+        stepValue(stage, dir);
     event->accept();
 }
 
@@ -355,22 +431,18 @@ void DpiBarWidget::keyPressEvent(QKeyEvent *event)
     const bool shift = event->modifiers() & Qt::ShiftModifier;
     int delta = 0;
     switch (event->key()) {
-    case Qt::Key_W:
-    case Qt::Key_Up:
-    case Qt::Key_Right:
-        delta = shift ? 250 : 50;
-        break;
-    case Qt::Key_S:
-    case Qt::Key_Down:
     case Qt::Key_Left:
         delta = shift ? -250 : -50;
         break;
-    case Qt::Key_Tab:
-        setActiveStage(m_activeStage < dpiscale::kNumStages ? m_activeStage + 1 : 1);
+    case Qt::Key_Right:
+        delta = shift ? 250 : 50;
+        break;
+    case Qt::Key_Up:
+        setActiveStage(m_activeStage > 1 ? m_activeStage - 1 : dpiscale::kNumStages);
         event->accept();
         return;
-    case Qt::Key_Backtab:
-        setActiveStage(m_activeStage > 1 ? m_activeStage - 1 : dpiscale::kNumStages);
+    case Qt::Key_Down:
+        setActiveStage(m_activeStage < dpiscale::kNumStages ? m_activeStage + 1 : 1);
         event->accept();
         return;
     case Qt::Key_F2:
@@ -379,6 +451,9 @@ void DpiBarWidget::keyPressEvent(QKeyEvent *event)
         event->accept();
         return;
     default:
+        // Tab and Backtab are deliberately not handled: swallowing them traps
+        // keyboard focus inside the bar and makes it impossible to reach the
+        // rest of the window with the keyboard.
         QWidget::keyPressEvent(event);
         return;
     }

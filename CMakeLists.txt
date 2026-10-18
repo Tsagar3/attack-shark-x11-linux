@@ -113,3 +113,10 @@ target_compile_features(battery_packet_tests PRIVATE cxx_std_17)
 target_include_directories(battery_packet_tests PRIVATE ${UDEV_INCLUDE_DIRS} ${LIBUSB_INCLUDE_DIRS})
 target_link_libraries(battery_packet_tests PRIVATE ${UDEV_LIBRARIES} ${LIBUSB_LIBRARIES} Qt${QT_VERSION_MAJOR}::Core)
 add_test(NAME battery_packet_tests COMMAND battery_packet_tests)
+
+add_executable(dpibar_interaction_tests tests/dpibar_interaction_test.cpp dpibar.cpp dpiscale.cpp)
+target_compile_features(dpibar_interaction_tests PRIVATE cxx_std_17)
+# QtTest ships with qtbase, so this pulls in no extra dependency.
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Test)
+target_link_libraries(dpibar_interaction_tests PRIVATE Qt${QT_VERSION_MAJOR}::Test Qt${QT_VERSION_MAJOR}::Widgets)
+add_test(NAME dpibar_interaction_tests COMMAND dpibar_interaction_tests)

@@ -37,6 +37,9 @@ protected:
     void mouseDoubleClickEvent(QMouseEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
+    void focusOutEvent(QFocusEvent *event) override;
+    void hideEvent(QHideEvent *event) override;
+    bool event(QEvent *event) override;
     bool eventFilter(QObject *obj, QEvent *event) override;
 
 private:
@@ -60,14 +63,22 @@ private:
     void paintRangeLabels(QPainter &p);
 
     void stepValue(int stage, int delta);
+    void endDrag();
     void openEditor(int stage);
     void closeEditor();
     void applyEditedValue();
 
     int m_values[6] = {800, 1600, 2400, 3200, 5000, 22000};
     int m_activeStage = 1;
+    // A press arms the drag but only commits to it once the pointer travels
+    // further than the platform drag distance, so a plain click or a double
+    // click on a handle cannot nudge the value.
+    int m_pressStage = -1;
+    QPoint m_pressPos;
     int m_dragStage = -1;
     int m_dragStartValue = 0;
+    // Unconsumed wheel movement, so one notch always means one step.
+    int m_wheelRemainder = 0;
     QLineEdit *m_editor = nullptr;
     int m_editStage = 0;
 };
