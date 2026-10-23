@@ -4,6 +4,7 @@
 #include <QPoint>
 #include <QRect>
 #include <QSize>
+#include <QVector>
 #include <QWidget>
 
 class QLineEdit;
@@ -24,6 +25,18 @@ public:
 
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override;
+
+    // Where each stage label ends up for the current values and width. Stages
+    // bunch up on the left of the logarithmic scale, so a label that has no room
+    // is moved to the row above and one that still has no room is left out
+    // rather than drawn on top of its neighbour. Exposed so the tests can assert
+    // that no two labels overlap.
+    struct StageLabel {
+        QRect rect;
+        int stage = 0;
+        bool active = false;
+    };
+    QVector<StageLabel> stageLabelLayout() const;
 
 signals:
     void valueChanged(int stage, int dpi);

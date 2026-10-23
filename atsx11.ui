@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
 <width>740</width>
-      <height>560</height>
+      <height>498</height>
      </rect>
     </property>
     <property name="sizePolicy">
@@ -22,13 +22,13 @@
 <property name="minimumSize">
     <size>
 <width>740</width>
-      <height>560</height>
+      <height>498</height>
      </size>
     </property>
 <property name="maximumSize">
     <size>
 <width>740</width>
-      <height>560</height>
+      <height>498</height>
      </size>
     </property>
   <property name="sizeIncrement">
@@ -2585,7 +2585,7 @@
     <property name="geometry">
       <rect>
        <x>0</x>
-       <y>488</y>
+       <y>440</y>
        <width>740</width>
       <height>58</height>
      </rect>

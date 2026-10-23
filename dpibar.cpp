@@ -168,28 +168,19 @@ void DpiBarWidget::paintGroove(QPainter &p)
     style()->drawComplexControl(QStyle::CC_Slider, &opt, &p, this);
 }
 
-void DpiBarWidget::paintStageLabels(QPainter &p)
+QVector<DpiBarWidget::StageLabel> DpiBarWidget::stageLabelLayout() const
 {
-    const QFontMetrics fm = fontMetrics();
-    const int labelHeight = fm.height();
+    const int labelHeight = fontMetrics().height();
     const int mainRowTop = mainLabelRowTop();
     const int activeIndex = m_activeStage - 1;
 
-    // Labels are centred on their handle. Two rows are available: the main row
-    // and the one above it. A label that fits neither is dropped rather than
-    // overprinted, because six low DPI stages bunch up on the left of the
-    // logarithmic scale and there is simply no room for all of them. The active
-    // stage is always drawn, last, over an opaque backing so it stays readable.
-    struct Placed {
-        QRect rect;
-        int stage;
-        bool active;
-    };
-    QVector<Placed> placed;
+    QVector<StageLabel> placed;
+    // Right edge of the labels already placed on each row. Starts below zero so a
+    // label flush against the left edge still fits.
     int rightEdge[2] = { std::numeric_limits<int>::min(), std::numeric_limits<int>::min() };
 
     for (int i = 0; i < dpiscale::kNumStages; ++i) {
-        QFont font = p.font();
+        QFont font = this->font();
         font.setBold(i == activeIndex);
         const QFontMetrics stageFm(font);
         const int width = stageFm.horizontalAdvance(QString::number(m_values[i])) + 6;
@@ -204,9 +195,10 @@ void DpiBarWidget::paintStageLabels(QPainter &p)
                 break;
             }
         }
-        if (row < 0 && i == activeIndex) {
+        // The active stage is the one the user is looking at, so it is drawn even
+        // when it has to share a row with its neighbour.
+        if (row < 0 && i == activeIndex)
             row = (rightEdge[0] <= rightEdge[1]) ? 0 : 1;
-        }
         if (row < 0)
             continue;
 
@@ -216,10 +208,28 @@ void DpiBarWidget::paintStageLabels(QPainter &p)
                         i, i == activeIndex });
     }
 
-    std::sort(placed.begin(), placed.end(),
-              [](const Placed &a, const Placed &b) { return a.active < b.active; });
+    // The active label wins the space it needs: a neighbour it would sit on top of
+    // is dropped instead, which keeps every visible label whole. The row above is
+    // tried first above, so in practice this only bites at narrow widths.
+    const auto active = std::find_if(placed.begin(), placed.end(),
+                                     [](const StageLabel &label) { return label.active; });
+    if (active != placed.end()) {
+        const QRect activeRect = active->rect;
+        placed.erase(std::remove_if(placed.begin(), placed.end(),
+                                    [&activeRect](const StageLabel &label) {
+                                        return !label.active && label.rect.intersects(activeRect);
+                                    }),
+                     placed.end());
+    }
 
-    for (const Placed &label : placed) {
+    std::sort(placed.begin(), placed.end(),
+              [](const StageLabel &a, const StageLabel &b) { return a.active < b.active; });
+    return placed;
+}
+
+void DpiBarWidget::paintStageLabels(QPainter &p)
+{
+    for (const StageLabel &label : stageLabelLayout()) {
         if (label.active) {
             p.fillRect(label.rect, palette().color(QPalette::Window));
             p.setPen(palette().color(QPalette::Highlight));

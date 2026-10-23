@@ -129,6 +129,11 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Test)
 target_link_libraries(dpibar_interaction_tests PRIVATE Qt${QT_VERSION_MAJOR}::Test Qt${QT_VERSION_MAJOR}::Widgets)
 add_test(NAME dpibar_interaction_tests COMMAND dpibar_interaction_tests)
 
+add_executable(dpibar_label_tests tests/dpibar_labels_test.cpp dpibar.cpp dpiscale.cpp)
+target_compile_features(dpibar_label_tests PRIVATE cxx_std_17)
+target_link_libraries(dpibar_label_tests PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
+add_test(NAME dpibar_label_tests COMMAND dpibar_label_tests)
+
 add_executable(access_message_tests tests/access_message_test.cpp hook.cpp dpi.cpp)
 target_compile_features(access_message_tests PRIVATE cxx_std_17)
 target_include_directories(access_message_tests PRIVATE ${UDEV_INCLUDE_DIRS} ${LIBUSB_INCLUDE_DIRS})
